@@ -3762,7 +3762,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "01098ae9-ddf1-41bf-8622-9c31e00590fe")
-		(property "Reference" "R_PLAY_B"
+		(property "Reference" "R_PLAY_B1"
 			(at 107.95 116.8399 0)
 			(effects
 				(font
@@ -3816,7 +3816,7 @@
 		(instances
 			(project "FADETUBE_MIDI"
 				(path "/51aff578-2ad6-4f14-ac60-9cc95c2688c8"
-					(reference "R_PLAY_B")
+					(reference "R_PLAY_B1")
 					(unit 1)
 				)
 			)
@@ -4570,7 +4570,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "46ce5df0-d645-4480-8d7c-045d8a16ddc0")
-		(property "Reference" "R_LOAD_B"
+		(property "Reference" "R_LOAD_B1"
 			(at 115.57 132.08 90)
 			(effects
 				(font
@@ -4624,7 +4624,7 @@
 		(instances
 			(project "FADETUBE_MIDI"
 				(path "/51aff578-2ad6-4f14-ac60-9cc95c2688c8"
-					(reference "R_LOAD_B")
+					(reference "R_LOAD_B1")
 					(unit 1)
 				)
 			)
@@ -4639,7 +4639,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "4e0a6bd9-170d-401a-a588-a03d1d41121d")
-		(property "Reference" "R_LOAD_A"
+		(property "Reference" "R_LOAD_A1"
 			(at 113.03 90.678 90)
 			(effects
 				(font
@@ -4691,7 +4691,7 @@
 		(instances
 			(project "FADETUBE_MIDI"
 				(path "/51aff578-2ad6-4f14-ac60-9cc95c2688c8"
-					(reference "R_LOAD_A")
+					(reference "R_LOAD_A1")
 					(unit 1)
 				)
 			)
@@ -5303,7 +5303,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "ae76d152-b877-41d3-81e0-6de52432a25a")
-		(property "Reference" "R1_PLAY_A"
+		(property "Reference" "R_PLAY_A1"
 			(at 106.68 72.3899 0)
 			(effects
 				(font
@@ -5357,7 +5357,7 @@
 		(instances
 			(project ""
 				(path "/51aff578-2ad6-4f14-ac60-9cc95c2688c8"
-					(reference "R1_PLAY_A")
+					(reference "R_PLAY_A1")
 					(unit 1)
 				)
 			)
@@ -5381,7 +5381,7 @@
 				)
 			)
 		)
-		(property "Value" "Sparkfun_Pro_Micro"
+		(property "Value" "ArduinoProMicroATmega32U4USB-C1"
 			(at 102.87 31.75 0)
 			(effects
 				(font
