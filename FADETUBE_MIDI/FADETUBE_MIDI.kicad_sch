@@ -513,6 +513,146 @@
 			)
 			(embedded_fonts no)
 		)
+		(symbol "Device:C_US"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0.254)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(property "Reference" "C"
+				(at 0.635 2.54 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Value" "C_US"
+				(at 0.635 -2.54 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Description" "capacitor, US symbol"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_keywords" "cap capacitor"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_fp_filters" "C_*"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(symbol "C_US_0_1"
+				(polyline
+					(pts
+						(xy -2.032 0.762) (xy 2.032 0.762)
+					)
+					(stroke
+						(width 0.508)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(arc
+					(start -2.032 -1.27)
+					(mid 0 -0.5572)
+					(end 2.032 -1.27)
+					(stroke
+						(width 0.508)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "C_US_1_1"
+				(pin passive line
+					(at 0 3.81 270)
+					(length 2.794)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 -3.81 90)
+					(length 3.302)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 		(symbol "Device:R_US"
 			(pin_numbers
 				(hide yes)
@@ -2522,6 +2662,12 @@
 		(uuid "59024a7a-9593-4253-9d8b-f2f089bae84e")
 	)
 	(junction
+		(at 133.35 44.45)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "5bff079e-a7ec-424a-878e-6d36b8c7bcfa")
+	)
+	(junction
 		(at 78.74 132.08)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -2576,6 +2722,18 @@
 		(uuid "ab63da74-9065-4df4-8d03-848656b9e617")
 	)
 	(junction
+		(at 133.35 25.4)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "b2d37cc2-5b44-4812-a9e7-f8f68664c351")
+	)
+	(junction
+		(at 154.94 25.4)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "bf70e88e-5755-415a-8e29-2003f1a62b1a")
+	)
+	(junction
 		(at 83.82 124.46)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -2612,6 +2770,12 @@
 		(uuid "e83bb7dd-d61f-4e15-9af0-757f5eaf4079")
 	)
 	(junction
+		(at 154.94 44.45)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "e944b5f9-6dd1-43fe-b706-a4916c147344")
+	)
+	(junction
 		(at 83.82 127)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -2632,6 +2796,16 @@
 			(type default)
 		)
 		(uuid "03505b7c-8d7c-4b6a-9b7f-a26cbd61def9")
+	)
+	(wire
+		(pts
+			(xy 133.35 39.37) (xy 133.35 44.45)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "04e3ce89-6e57-4cc1-a08d-53cd71c46961")
 	)
 	(wire
 		(pts
@@ -2685,6 +2859,16 @@
 	)
 	(wire
 		(pts
+			(xy 154.94 25.4) (xy 154.94 31.75)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "14ba7182-28ba-47cc-b425-d7f48b903345")
+	)
+	(wire
+		(pts
 			(xy 45.72 92.71) (xy 83.82 92.71)
 		)
 		(stroke
@@ -2712,6 +2896,16 @@
 			(type default)
 		)
 		(uuid "1b456645-557c-4ec6-a612-24924a7d116e")
+	)
+	(wire
+		(pts
+			(xy 133.35 25.4) (xy 154.94 25.4)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "1c4f034e-fa31-4822-ab35-58521cf81ad9")
 	)
 	(wire
 		(pts
@@ -2792,6 +2986,16 @@
 			(type default)
 		)
 		(uuid "2fd23ba2-2713-4bff-93a8-93ffde633565")
+	)
+	(wire
+		(pts
+			(xy 154.94 44.45) (xy 171.45 44.45)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "314f8804-bcac-4181-9501-faf2e301ad3a")
 	)
 	(wire
 		(pts
@@ -2882,6 +3086,16 @@
 			(type default)
 		)
 		(uuid "4eeec56c-84c0-4304-8881-9f66b49fe038")
+	)
+	(wire
+		(pts
+			(xy 154.94 39.37) (xy 154.94 44.45)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "504cffc1-d7ce-4e01-9f6c-a35984dc5027")
 	)
 	(wire
 		(pts
@@ -3002,6 +3216,16 @@
 			(type default)
 		)
 		(uuid "5f40d0da-3e70-4903-bd53-298bfba1f0cb")
+	)
+	(wire
+		(pts
+			(xy 133.35 44.45) (xy 154.94 44.45)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "5f4b9307-1a7b-424c-898a-3b9d8adf92a0")
 	)
 	(wire
 		(pts
@@ -3175,7 +3399,7 @@
 	)
 	(wire
 		(pts
-			(xy 77.47 25.4) (xy 179.07 25.4)
+			(xy 77.47 25.4) (xy 133.35 25.4)
 		)
 		(stroke
 			(width 0)
@@ -3212,6 +3436,16 @@
 			(type default)
 		)
 		(uuid "88c45270-e010-4e8b-9875-b8426f672299")
+	)
+	(wire
+		(pts
+			(xy 133.35 25.4) (xy 133.35 31.75)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "88e560af-29fe-443f-805a-8261978cf07d")
 	)
 	(wire
 		(pts
@@ -3725,7 +3959,7 @@
 	)
 	(wire
 		(pts
-			(xy 118.11 44.45) (xy 171.45 44.45)
+			(xy 118.11 44.45) (xy 133.35 44.45)
 		)
 		(stroke
 			(width 0)
@@ -3742,6 +3976,16 @@
 			(type default)
 		)
 		(uuid "f672519a-62a6-4117-958c-d3e8073fee62")
+	)
+	(wire
+		(pts
+			(xy 154.94 25.4) (xy 179.07 25.4)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "fc3e09b0-b7f9-4e75-9bf4-77bfae5d3d55")
 	)
 	(wire
 		(pts
@@ -4562,6 +4806,75 @@
 		)
 	)
 	(symbol
+		(lib_id "Device:C_US")
+		(at 133.35 35.56 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "3bb152a9-c3ab-4dd4-a2bd-77b8377fe0c0")
+		(property "Reference" "C1"
+			(at 137.16 34.5439 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "100nF"
+			(at 137.16 37.0839 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
+			(at 133.35 35.56 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 133.35 35.56 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "capacitor, US symbol"
+			(at 133.35 35.56 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "d4873fd0-f0d7-4263-a5d6-01af71abc183")
+		)
+		(pin "2"
+			(uuid "c500fd30-4259-4baf-93e2-4d9d8038a8bc")
+		)
+		(instances
+			(project ""
+				(path "/51aff578-2ad6-4f14-ac60-9cc95c2688c8"
+					(reference "C1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Device:R_US")
 		(at 113.03 134.62 90)
 		(unit 1)
@@ -5289,6 +5602,76 @@
 			(project ""
 				(path "/51aff578-2ad6-4f14-ac60-9cc95c2688c8"
 					(reference "#PWR06")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:C_US")
+		(at 154.94 35.56 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "9fbb1eb2-b6b4-45c3-b56b-667a1b764d29")
+		(property "Reference" "C2"
+			(at 158.75 34.5439 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "10uF"
+			(at 158.75 37.0839 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
+			(at 154.94 35.56 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 154.94 35.56 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "capacitor, US symbol"
+			(at 154.94 35.56 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "3ad9472c-b288-4858-95ea-205e38ae48f9")
+		)
+		(pin "2"
+			(uuid "db226579-5997-46b9-88e9-b78412e4e95d")
+		)
+		(instances
+			(project "FADETUBE_MIDI"
+				(path "/51aff578-2ad6-4f14-ac60-9cc95c2688c8"
+					(reference "C2")
 					(unit 1)
 				)
 			)
