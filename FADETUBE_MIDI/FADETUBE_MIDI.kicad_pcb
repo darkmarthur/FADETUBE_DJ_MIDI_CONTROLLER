@@ -691,7 +691,7 @@
 				)
 			)
 		)
-		(property "MANUFACTURER" "Bourns"
+		(property "MANUFACTURER" "BOURNS"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -1539,6 +1539,58 @@
 				)
 			)
 		)
+		(property "MANUFACTURER PART NUMBER" "RC0603FR-07470RL"
+			(at 0 0 90)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "5b08c0cf-b2ce-47fd-9f3d-6451cc0442e1")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "PURCHASE-URL" "https://www.digikey.com/en/products/detail/yageo/RC0603FR-07470RL/727256?s=N4IgTCBcDaIEoGEAMA2JBmAYnAtEg7ACz5JwAyIAugL5A"
+			(at 0 0 90)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "7d003259-dfa0-4971-b37e-ac0f99a700a6")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "SUPPLIER" "DIGIKEY"
+			(at 0 0 90)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "01bf791a-9be4-42c7-b2a4-af3d072f9047")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "SUPPLIER PART NUMBER" "311-470HRTR-ND"
+			(at 0 0 90)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "95247f74-2a67-4ec0-b124-2712d30c90e8")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
 		(path "/86fbd07b-1f57-438c-8ebb-734bafe1f1cf")
 		(sheetname "/")
 		(sheetfile "FADETUBE_MIDI.kicad_sch")
@@ -1864,7 +1916,7 @@
 				)
 			)
 		)
-		(property "MANUFACTURER" "Bourns"
+		(property "MANUFACTURER" "BOURNS"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -2841,6 +2893,58 @@
 				)
 			)
 		)
+		(property "MANUFACTURER PART NUMBER" "RC0603FR-07470RL"
+			(at 0 0 90)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "1a8d43a9-7a54-4b6c-9a32-28c97213c007")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "PURCHASE-URL" "https://www.digikey.com/en/products/detail/yageo/RC0603FR-07470RL/727256?s=N4IgTCBcDaIEoGEAMA2JBmAYnAtEg7ACz5JwAyIAugL5A"
+			(at 0 0 90)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "987b7312-d7f4-4450-90ef-aa87fbdd0061")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "SUPPLIER" "DIGIKEY"
+			(at 0 0 90)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "f737f4ae-e378-47a0-980d-41aedd0d4545")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "SUPPLIER PART NUMBER" "311-470HRTR-ND"
+			(at 0 0 90)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "9e511b56-dc44-4ab9-8beb-13ed91c70fe6")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
 		(path "/2ba80d9a-7169-457d-be12-46434d640e6d")
 		(sheetname "/")
 		(sheetfile "FADETUBE_MIDI.kicad_sch")
@@ -3121,6 +3225,58 @@
 			(layer "F.Fab")
 			(hide yes)
 			(uuid "8fb0706a-aea9-42d4-91c2-ec8fba088639")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "MANUFACTURER PART NUMBER" "RC0603FR-07470RL"
+			(at 0 0 90)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "2b56c796-119a-48c5-875c-64326b6f4586")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "PURCHASE-URL" "https://www.digikey.com/en/products/detail/yageo/RC0603FR-07470RL/727256?s=N4IgTCBcDaIEoGEAMA2JBmAYnAtEg7ACz5JwAyIAugL5A"
+			(at 0 0 90)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "cf6b1114-7313-4727-a83c-372635928b73")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "SUPPLIER" "DIGIKEY"
+			(at 0 0 90)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "41fa603b-084b-4ac9-9674-5791d2d76da0")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "SUPPLIER PART NUMBER" "311-470HRTR-ND"
+			(at 0 0 90)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "0f47039c-ab28-43c2-bc8e-04d488c2edad")
 			(effects
 				(font
 					(size 1 1)
@@ -3834,6 +3990,58 @@
 			(layer "F.Fab")
 			(hide yes)
 			(uuid "7dfc6d56-6e51-437e-b7bf-eeb6a8ef6db7")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "MANUFACTURER PART NUMBER" "RC0603FR-07470RL"
+			(at 0 0 90)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "d2f52c0a-2321-427e-93b6-99640d47b86f")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "PURCHASE-URL" "https://www.digikey.com/en/products/detail/yageo/RC0603FR-07470RL/727256?s=N4IgTCBcDaIEoGEAMA2JBmAYnAtEg7ACz5JwAyIAugL5A"
+			(at 0 0 90)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "ad8f77bc-1e15-4f00-9818-a78ba707bf16")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "SUPPLIER" "DIGIKEY"
+			(at 0 0 90)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "441d42a3-add9-4dfb-9f78-4d3484ea02a2")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "SUPPLIER PART NUMBER" "311-470HRTR-ND"
+			(at 0 0 90)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "59b95560-f577-473f-883a-53f949b00945")
 			(effects
 				(font
 					(size 1 1)
