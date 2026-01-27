@@ -1,4 +1,46 @@
-27242953750083317
+27269485812226411
+Arduino
+Arduino_Micro
+Arduino Micro
+Arduino Micro
+0
+34
+34
+Arduino
+Arduino_Nano
+Arduino Nano
+Arduino Nano
+0
+30
+30
+Arduino
+Arduino_Nano_Every
+Arduino Nano Every
+Arduino Nano Every
+0
+30
+30
+Arduino
+Arduino_Pro_Micro_ATmega32U4_USBC_U
+Arduino Pro Micro ATmega32U4 USB C
+Arduino Sparkfun Pro Micro
+0
+24
+24
+Arduino
+Arduino_Pro_Mini
+Arduino Pro Mini
+Arduino Pro Mini
+0
+28
+28
+Arduino
+Sparkfun_Pro_Micro
+Sparkfun Pro Micro
+Arduino Sparkfun Pro Micro
+0
+24
+24
 Audio_Module
 Reverb_BTDR-1H
 Digital Reverberation Unit, http://www.belton.co.kr/inc/downfile.php?seq=17&file=pdf (footprint from http://www.uk-electronic.de/PDF/BTDR-1.pdf)
@@ -62194,6 +62236,69 @@ One digit LED 7 segment SA39-11 SC39-11 SA39-12 SC39-12
 0
 10
 10
+FADETUBE_LIBRARY
+CAPC1608X90
+<b>CAPACITOR</b>
+
+0
+2
+2
+FADETUBE_LIBRARY
+CAPC2012X88N
+
+
+0
+2
+2
+FADETUBE_LIBRARY
+JST_B8B-PH-K-S
+
+
+0
+8
+8
+FADETUBE_LIBRARY
+JST_B8B-XH-A
+
+
+0
+8
+8
+FADETUBE_LIBRARY
+RESC1608X55
+<b>RESISTOR</b>
+
+0
+2
+2
+FADETUBE_LIBRARY
+TRIM_PTA4553-2215CIB103
+
+
+0
+7
+7
+FADETUBE_LIBRARY
+XDCR_PEC11R-4220K-S0024
+
+
+0
+7
+7
+FADETUBE_LIBRARY
+fadetube-logo
+
+
+0
+0
+0
+FADETUBE_LIBRARY
+onda-audio-logo
+
+
+0
+0
+0
 Ferrite_THT
 LairdTech_28C0236-0JW-10
 Ferrite, vertical, LairdTech 28C0236-0JW-10, https://assets.lairdtech.com/home/brandworld/files/28C0236-0JW-10.pdf, JW Miller core https://www.bourns.com/products/magnetic-products/j.w.-miller-through-hole-ferrite-beads-emi-filters

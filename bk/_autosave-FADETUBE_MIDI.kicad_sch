@@ -3760,16 +3760,6 @@
 	)
 	(wire
 		(pts
-			(xy 153.67 74.93) (xy 153.67 80.01)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "504cffc1-d7ce-4e01-9f6c-a35984dc5027")
-	)
-	(wire
-		(pts
 			(xy 82.55 130.81) (xy 134.62 130.81)
 		)
 		(stroke
@@ -4747,6 +4737,16 @@
 			(type default)
 		)
 		(uuid "e435fc84-9004-4279-bf86-33e26f5b6fc3")
+	)
+	(wire
+		(pts
+			(xy 153.67 74.93) (xy 153.67 80.01)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e60f9f47-e15e-47ce-b328-d9a57256c3a6")
 	)
 	(wire
 		(pts
@@ -7841,7 +7841,7 @@
 	)
 	(symbol
 		(lib_id "FADETUBE_LIBRARY:C0805C106K8PACTU")
-		(at 153.67 72.39 90)
+		(at 153.67 69.85 270)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -7855,7 +7855,7 @@
 				(font
 					(size 1.27 1.27)
 				)
-				(justify right)
+				(justify left)
 			)
 		)
 		(property "Value" "10 µF"
@@ -7864,11 +7864,11 @@
 				(font
 					(size 1.27 1.27)
 				)
-				(justify right)
+				(justify left)
 			)
 		)
 		(property "Footprint" "Capacitor_THT:CP_Radial_D5.0mm_P2.00mm"
-			(at 153.67 72.39 0)
+			(at 153.67 69.85 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7878,7 +7878,7 @@
 			)
 		)
 		(property "Datasheet" "https://yageogroup.com/content/datasheet/asset/file/KEM_C1006_X5R_SMD"
-			(at 153.67 72.39 0)
+			(at 153.67 69.85 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7887,7 +7887,7 @@
 			)
 		)
 		(property "Description" "10 µF C0805C106K8PACTU"
-			(at 153.67 72.39 0)
+			(at 153.67 69.85 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7896,7 +7896,7 @@
 			)
 		)
 		(property "MF" "KEMET"
-			(at 153.67 72.39 0)
+			(at 153.67 69.85 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7906,7 +7906,7 @@
 			)
 		)
 		(property "Description_1" "0805 C 10uF Ceramic Multilayer Capacitor, 10 V, +85degC, X5R Dielectric, +/-10% | KEMET C0805C106K8PACTU"
-			(at 153.67 72.39 0)
+			(at 153.67 69.85 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7916,7 +7916,7 @@
 			)
 		)
 		(property "Package" "0805 Kemet"
-			(at 153.67 72.39 0)
+			(at 153.67 69.85 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7926,7 +7926,7 @@
 			)
 		)
 		(property "Price" "None"
-			(at 153.67 72.39 0)
+			(at 153.67 69.85 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7936,7 +7936,7 @@
 			)
 		)
 		(property "SnapEDA_Link" "https://www.snapeda.com/parts/C0805C106K8PACTU/Kemet/view-part/?ref=snap"
-			(at 153.67 72.39 0)
+			(at 153.67 69.85 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7946,7 +7946,7 @@
 			)
 		)
 		(property "MP" "C0805C106K8PACTU"
-			(at 153.67 72.39 0)
+			(at 153.67 69.85 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7956,7 +7956,7 @@
 			)
 		)
 		(property "Availability" "In Stock"
-			(at 153.67 72.39 0)
+			(at 153.67 69.85 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7966,7 +7966,7 @@
 			)
 		)
 		(property "Check_prices" "https://www.snapeda.com/parts/C0805C106K8PACTU/Kemet/view-part/?ref=eda"
-			(at 153.67 72.39 0)
+			(at 153.67 69.85 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7976,7 +7976,7 @@
 			)
 		)
 		(property "MANUFACTURER" "KEMET"
-			(at 153.67 72.39 90)
+			(at 153.67 69.85 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7985,7 +7985,7 @@
 			)
 		)
 		(property "MANUFACTURER PART NUMBER" "C0805C106K8PACTU"
-			(at 153.67 72.39 90)
+			(at 153.67 69.85 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7994,7 +7994,7 @@
 			)
 		)
 		(property "PURCHASE-URL" "https://www.digikey.com/en/products/detail/kemet/C0805C106K8PACTU/1090830?utm_campaign=buynow&utm_medium=aggregator&utm_source=snapeda"
-			(at 153.67 72.39 90)
+			(at 153.67 69.85 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8003,7 +8003,7 @@
 			)
 		)
 		(property "SUPPLIER" "DIGIKEY"
-			(at 153.67 72.39 90)
+			(at 153.67 69.85 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8012,7 +8012,7 @@
 			)
 		)
 		(property "SUPPLIER PART NUMBER" "399-C0805C106K8PACTUDKR-ND"
-			(at 153.67 72.39 90)
+			(at 153.67 69.85 90)
 			(effects
 				(font
 					(size 1.27 1.27)
