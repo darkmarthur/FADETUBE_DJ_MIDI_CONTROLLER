@@ -1,31 +1,5 @@
 #include <MIDIUSB.h>
 
-// FadeTube – USB-MIDI Controller v1 (ATmega32U4)
-// - Sends MIDI (buttons/encoder/fader)
-// - Receives MIDI feedback (from Ableton) to drive LEDs
-//
-// Encoder: A=D2, B=D3, SW=D4 (COM->GND)
-// Fader B10K: 1->GND, 2->A0, 3->VCC(5V)
-// Play Buttons (momentary):
-//   Switch: one pin -> GND, other pin -> Dx (INPUT_PULLUP)
-//   LED: C -> GND, R -> Dx (OUTPUT)  [active HIGH]
-// Load Buttons (momentary switch only):
-//   Switch: one pin -> GND, other pin -> Dx (INPUT_PULLUP)
-//
-// MIDI mapping (Channel 1):
-// - Crossfader: CC14 absolute 0..127
-// - Encoder rotate: CC20 relative (CW=1, CCW=127)
-// - Encoder push: CC21 toggle (127/0)  [you can also make it momentary]
-// - Buttons:
-//   Play A: Note 60 (C4)
-//   Load A: Note 61 (C#4)
-//   Play B: Note 62 (D4)
-//   Load B: Note 63 (Eb4)
-//
-// LED feedback expectations from DAW:
-// - Play A LED follows Note 60 (On => velocity >0, Off => NoteOff/vel=0)
-// - Play B LED follows Note 62 (On => velocity >0, Off => NoteOff/vel=0)
-
 //////////////////////
 // PINES
 //////////////////////
@@ -47,6 +21,10 @@ const int playB_led = 10;
 const int loadA_sw = 7;
 const int loadB_sw = 8;
 
+// LOAD LEDs (R pin del botón; C a GND)  [active HIGH]
+const int loadA_led = 11;   // <-- CAMBIA a tu pin real
+const int loadB_led = 12;   // <-- CAMBIA a tu pin real
+
 //////////////////////
 // MIDI CONFIG
 //////////////////////
@@ -63,24 +41,21 @@ const uint8_t NOTE_LOAD_B = 63;
 //////////////////////
 // DEBOUNCE / FILTROS
 //////////////////////
-const unsigned long DEBOUNCE_BTN_MS = 40;     // botones
-const unsigned long DEBOUNCE_ENC_MS = 2;      // encoder steps
-const int FADER_DEADBAND = 1;                 // 1 = ignora jitter de +-1 en MIDI
-const unsigned long MIDI_FLUSH_EVERY_MS = 5;  // flush batching
+const unsigned long DEBOUNCE_BTN_MS = 40;
+const unsigned long DEBOUNCE_ENC_MS = 2;
+const int FADER_DEADBAND = 1;
+const unsigned long MIDI_FLUSH_EVERY_MS = 5;
 
 //////////////////////
 // ESTADO INPUTS
 //////////////////////
-// Encoder
 int lastA = HIGH;
 unsigned long lastEncStepMs = 0;
 
-// Encoder push
 bool lastEncSW = HIGH;
 unsigned long lastEncSWMs = 0;
-bool scrollToggleState = false; // para CC21 toggle
+bool scrollToggleState = false;
 
-// Buttons
 bool lastPlayA = HIGH;
 bool lastPlayB = HIGH;
 bool lastLoadA = HIGH;
@@ -91,8 +66,7 @@ unsigned long lastPlayBms = 0;
 unsigned long lastLoadAms = 0;
 unsigned long lastLoadBms = 0;
 
-// Fader
-int lastFaderMidi = -999; // fuerza primer envío
+int lastFaderMidi = -999;
 unsigned long lastMidiFlushMs = 0;
 
 //////////////////////
@@ -131,13 +105,17 @@ static inline void maybeFlush() {
 // LED APPLY
 //////////////////////
 static inline void applyLEDs() {
+  // LEDs PLAY por feedback
   digitalWrite(playA_led, ledPlayA ? HIGH : LOW);
   digitalWrite(playB_led, ledPlayB ? HIGH : LOW);
+
+  // LEDs LOAD siempre prendidos
+  digitalWrite(loadA_led, HIGH);
+  digitalWrite(loadB_led, HIGH);
 }
 
 //////////////////////
 // MIDI IN (feedback)
-// - We interpret NoteOn/NoteOff for notes 60 and 62 to drive LEDs.
 //////////////////////
 void handleMidiIn() {
   midiEventPacket_t rx;
@@ -150,11 +128,8 @@ void handleMidiIn() {
     uint8_t data1  = rx.byte2;
     uint8_t data2  = rx.byte3;
 
-    // Solo canal 1 (opcional; si quieres escuchar todos, quita este if)
     if (ch != MIDI_CH) continue;
 
-    // NOTE ON (0x90) y NOTE OFF (0x80)
-    // Nota: NoteOn con vel=0 es equivalente a NoteOff.
     if (status == 0x90) {
       bool isOn = (data2 > 0);
       if (data1 == NOTE_PLAY_A) { ledPlayA = isOn; applyLEDs(); }
@@ -164,14 +139,10 @@ void handleMidiIn() {
       if (data1 == NOTE_PLAY_B) { ledPlayB = false; applyLEDs(); }
     }
 
-    // (Opcional) también puedes mapear CC->LED aquí si tu DAW manda CC:
-    // if (status == 0xB0) { ... }
-
   } while (rx.header != 0);
 }
 
 void setup() {
-  // Pines
   pinMode(encA, INPUT_PULLUP);
   pinMode(encB, INPUT_PULLUP);
   pinMode(encSW, INPUT_PULLUP);
@@ -185,16 +156,18 @@ void setup() {
   pinMode(playA_led, OUTPUT);
   pinMode(playB_led, OUTPUT);
 
-  // LEDs arrancan apagados; el DAW los encenderá vía feedback
+  pinMode(loadA_led, OUTPUT);
+  pinMode(loadB_led, OUTPUT);
+
   ledPlayA = false;
   ledPlayB = false;
-  applyLEDs();
+  applyLEDs(); // <-- aquí ya deja LOAD siempre ON
 }
 
 void loop() {
   unsigned long now = millis();
 
-  // 1) Recibir feedback MIDI primero (para LEDs responsivos)
+  // 1) Feedback MIDI (PLAY LEDs)
   handleMidiIn();
 
   // 2) Encoder rotate -> CC20 relative
@@ -203,13 +176,8 @@ void loop() {
     if (now - lastEncStepMs > DEBOUNCE_ENC_MS) {
       lastEncStepMs = now;
       int b = digitalRead(encB);
-
-      // Convención: CW=1, CCW=127
-      if (b == HIGH) {
-        sendCC(CC_ENCODER_REL, 1);
-      } else {
-        sendCC(CC_ENCODER_REL, 127);
-      }
+      if (b == HIGH) sendCC(CC_ENCODER_REL, 1);
+      else           sendCC(CC_ENCODER_REL, 127);
       maybeFlush();
     }
   }
@@ -228,7 +196,6 @@ void loop() {
   lastEncSW = sw;
 
   // 4) Buttons -> Notes
-  // Play A
   bool pA = digitalRead(playA_sw);
   if (lastPlayA == HIGH && pA == LOW) {
     if (now - lastPlayAms > DEBOUNCE_BTN_MS) {
@@ -237,13 +204,11 @@ void loop() {
       maybeFlush();
     }
   } else if (lastPlayA == LOW && pA == HIGH) {
-    // release -> Note Off
     sendNoteOff(NOTE_PLAY_A);
     maybeFlush();
   }
   lastPlayA = pA;
 
-  // Play B
   bool pB = digitalRead(playB_sw);
   if (lastPlayB == HIGH && pB == LOW) {
     if (now - lastPlayBms > DEBOUNCE_BTN_MS) {
@@ -257,7 +222,6 @@ void loop() {
   }
   lastPlayB = pB;
 
-  // Load A (momentary)
   bool lA = digitalRead(loadA_sw);
   if (lastLoadA == HIGH && lA == LOW) {
     if (now - lastLoadAms > DEBOUNCE_BTN_MS) {
@@ -271,7 +235,6 @@ void loop() {
   }
   lastLoadA = lA;
 
-  // Load B (momentary)
   bool lB = digitalRead(loadB_sw);
   if (lastLoadB == HIGH && lB == LOW) {
     if (now - lastLoadBms > DEBOUNCE_BTN_MS) {
@@ -285,19 +248,20 @@ void loop() {
   }
   lastLoadB = lB;
 
-  // 5) Crossfader -> CC14 absolute
+  // 5) Crossfader -> CC14
   int raw = analogRead(faderPin);
   raw = (raw + analogRead(faderPin) + analogRead(faderPin) + analogRead(faderPin)) / 4;
 
   int midi = map(raw, 0, 1023, 0, 127);
 
-  // deadband anti-jitter
   if (lastFaderMidi == -999 || abs(midi - lastFaderMidi) > FADER_DEADBAND) {
     lastFaderMidi = midi;
     sendCC(CC_CROSSFADER, (uint8_t)midi);
     maybeFlush();
   }
 
-  // flush final
+  // Opcional: si quieres blindar 100% que LOAD nunca se apague, re-aplica:
+  // applyLEDs();
+
   maybeFlush();
 }
