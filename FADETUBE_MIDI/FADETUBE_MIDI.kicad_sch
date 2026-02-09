@@ -3108,6 +3108,19 @@
 			(embedded_fonts no)
 		)
 	)
+	(text "TE LOS DESCRIBO:\n\nPLAY 1 BTN = PIN 8 - D5\nPLAY 2 BTN = PIN 9 - D6\n\nLOAD 1 BTN = 10 - D7\nLOAD 2 BTN = 11 - D8\n\nPLAY 1 BTN LED = 12 - D9\nPLAY 2 BTN LED = 13 - D10\n\nLOAD 1 BTN LED = 14 - D16\nLOAD 2 BTN LED = 15 - D14\n\n\n"
+		(exclude_from_sim no)
+		(at 140.716 136.144 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+				(thickness 0.254)
+				(bold yes)
+			)
+			(justify left)
+		)
+		(uuid "68d6e925-4197-4b67-a565-6fc2f18ad610")
+	)
 	(junction
 		(at 74.93 157.48)
 		(diameter 0)
