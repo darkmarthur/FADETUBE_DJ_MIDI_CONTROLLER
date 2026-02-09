@@ -17,7 +17,7 @@ fadetube32u4.upload_port.2.vid=0x2A03
 fadetube32u4.upload_port.2.pid=0x0036
 fadetube32u4.upload_port.3.vid=0x2A03
 fadetube32u4.upload_port.3.pid=0x8036
-fadetube32u4.upload_port.4.board=leonardo
+fadetube32u4.upload_port.4.board=fadetube32u4
 
 fadetube32u4.upload.tool=avrdude
 fadetube32u4.upload.tool.default=avrdude
