@@ -3,36 +3,45 @@
 /*
   FadeTube – USB-MIDI Controller v1 (ATmega32U4)
 
-  Requerimientos:
-  - LOAD LEDs: SIEMPRE PRENDIDOS.
-  - PLAY LEDs: prender:
-      a) por feedback MIDI del DAW (Note 60 y 62), y/o
-      b) localmente al presionar el botón (para test / sin DAW).
+  OBJETIVO:
+  - Los 4 LEDs (PLAY A/B, LOAD A/B) sincronizados con mensajes REMOTOS del DAW (MIDI IN).
+  - Opcional: fallback local (prender mientras presionas) para pruebas.
+  - NUEVO: LOAD LEDs "siempre ON", pero se apagan SOLO mientras presionas su botón y luego vuelven a ON.
 
-  Diagnóstico:
-  - Si PLAY LEDs nunca prenden: o no hay feedback del DAW, o el mapeo de pines LED está cruzado.
-  - Por eso: swaps separados para switches y LEDs.
+  DAW FEEDBACK (REMOTE):
+  - NoteOn/NoteOff (o NoteOn vel=0) para:
+      PLAY A = Note 60
+      LOAD A = Note 61
+      PLAY B = Note 62
+      LOAD B = Note 63
 */
 
 //////////////////////
 // CONFIG PRINCIPAL
 //////////////////////
-const bool SWAP_PLAY_LOAD_SWITCHES = true;  // <- si Play funciona como Load (switches cruzados), pon true
-const bool SWAP_PLAY_LOAD_LEDS     = true;  // <- si LEDs están cruzados, pon true (puede diferir del de switches)
+const bool SWAP_PLAY_LOAD_SWITCHES = true;   // si los switches Play/Load están cruzados
+const bool SWAP_PLAY_LOAD_LEDS     = true;   // si los LEDs Play/Load están cruzados
 
-const bool PLAY_LEDS_LOCAL_ON_PRESS = true; // <- prende LED Play mientras presionas, aunque no haya DAW
-const bool PLAY_LEDS_FROM_DAW       = true; // <- permite que el DAW controle LEDs Play (Note 60/62)
+// MODO LED
+const bool LEDS_FROM_DAW           = true;   // si true, el DAW puede controlar LEDs vía MIDI IN
+const bool LEDS_LOCAL_FALLBACK     = true;   // si true, al presionar se prende local (fallback)
 
-const bool LED_ACTIVE_HIGH_PLAY = true;     // <- si tu LED prende con HIGH
-const bool LED_ACTIVE_HIGH_LOAD = true;     // <- si tu LED prende con HIGH
+// LOAD behavior:
+// - true  = LOAD LEDs normalmente ON, y se apagan SOLO mientras presionas su botón
+// - false = LOAD LEDs siguen modo remoto/local como los PLAY
+const bool LOAD_LEDS_ALWAYS_ON     = true;
+const bool LOAD_LEDS_OFF_WHILE_PRESSED = true;  // solo aplica si LOAD_LEDS_ALWAYS_ON=true
 
-//////////////////////
-// DEBUG SERIAL
-//////////////////////
+// Polaridad
+const bool LED_ACTIVE_HIGH_PLAY = true;
+const bool LED_ACTIVE_HIGH_LOAD = true;
+
+// DEBUG
 #define DEBUG_SERIAL 1
+const unsigned long DEBUG_THROTTLE_MS = 40; // evita spam excesivo
 
 //////////////////////
-// PINES FÍSICOS (tu pinout)
+// PINES
 //////////////////////
 // Encoder
 const int encA  = 2;
@@ -42,20 +51,20 @@ const int encSW = 4;
 // Fader
 const int faderPin = A0;
 
-// Switches físicos
-const int PHY_playA_sw = 5; // D5  (PLAY 1 BTN)
-const int PHY_playB_sw = 6; // D6  (PLAY 2 BTN)
-const int PHY_loadA_sw = 7; // D7  (LOAD 1 BTN)
-const int PHY_loadB_sw = 8; // D8  (LOAD 2 BTN)
+// Switches físicos (según tu PCB real)
+const int PHY_playA_sw = 5; // D5
+const int PHY_playB_sw = 6; // D6
+const int PHY_loadA_sw = 7; // D7
+const int PHY_loadB_sw = 8; // D8
 
 // LEDs físicos
-const int PHY_playA_led = 9;   // D9  (PLAY 1 LED)
-const int PHY_playB_led = 10;  // D10 (PLAY 2 LED)
-const int PHY_loadA_led = 16;  // D16 (LOAD 1 LED)
-const int PHY_loadB_led = 14;  // D14 (LOAD 2 LED)
+const int PHY_playA_led = 9;   // D9
+const int PHY_playB_led = 10;  // D10
+const int PHY_loadA_led = 16;  // D16
+const int PHY_loadB_led = 14;  // D14
 
 //////////////////////
-// PINES LÓGICOS (resueltos por swaps)
+// PINES LÓGICOS (swaps)
 //////////////////////
 static inline int PIN_PLAY_A_SW() { return SWAP_PLAY_LOAD_SWITCHES ? PHY_loadA_sw : PHY_playA_sw; }
 static inline int PIN_PLAY_B_SW() { return SWAP_PLAY_LOAD_SWITCHES ? PHY_loadB_sw : PHY_playB_sw; }
@@ -91,16 +100,13 @@ const unsigned long MIDI_FLUSH_EVERY_MS = 5;
 //////////////////////
 // ESTADO INPUTS
 //////////////////////
-// Encoder
 int lastA = HIGH;
 unsigned long lastEncStepMs = 0;
 
-// Encoder push
 bool lastEncSW = HIGH;
 unsigned long lastEncSWMs = 0;
 bool scrollToggleState = false;
 
-// Buttons (lógicos)
 bool lastPlayA = HIGH;
 bool lastPlayB = HIGH;
 bool lastLoadA = HIGH;
@@ -111,53 +117,43 @@ unsigned long lastPlayBms = 0;
 unsigned long lastLoadAms = 0;
 unsigned long lastLoadBms = 0;
 
-// Fader
 int lastFaderMidi = -999;
 unsigned long lastMidiFlushMs = 0;
 
 //////////////////////
-// ESTADO LEDs (PLAY)
+// ESTADO LEDs
 //////////////////////
-// Estado por DAW (feedback)
+// Estado remoto (DAW)
 bool dawPlayA = false;
 bool dawPlayB = false;
+bool dawLoadA = false;
+bool dawLoadB = false;
 
-// Estado local por press (para test / uso sin DAW)
+// Estado local (fallback)
 bool localPlayA = false;
 bool localPlayB = false;
+bool localLoadA = false;
+bool localLoadB = false;
+
+// Estado final aplicado (para log por cambios)
+bool appliedPlayA = false;
+bool appliedPlayB = false;
+bool appliedLoadA = false;
+bool appliedLoadB = false;
+
+unsigned long lastDebugMs = 0;
 
 //////////////////////
-// HELPERS DEBUG
+// HELPERS
 //////////////////////
-static inline void dbg(const __FlashStringHelper* s) {
-#if DEBUG_SERIAL
-  Serial.print(s);
-#endif
-}
-static inline void dbgln(const __FlashStringHelper* s) {
-#if DEBUG_SERIAL
-  Serial.println(s);
-#endif
-}
-static inline void dbgPinMap() {
-#if DEBUG_SERIAL
-  Serial.println(F("=== LOGICAL PIN MAP ==="));
-  Serial.print(F("SW: PLAY_A=")); Serial.print(PIN_PLAY_A_SW());
-  Serial.print(F(" PLAY_B="));   Serial.print(PIN_PLAY_B_SW());
-  Serial.print(F(" LOAD_A="));   Serial.print(PIN_LOAD_A_SW());
-  Serial.print(F(" LOAD_B="));   Serial.println(PIN_LOAD_B_SW());
-
-  Serial.print(F("LED: PLAY_A=")); Serial.print(PIN_PLAY_A_LED());
-  Serial.print(F(" PLAY_B="));     Serial.print(PIN_PLAY_B_LED());
-  Serial.print(F(" LOAD_A="));     Serial.print(PIN_LOAD_A_LED());
-  Serial.print(F(" LOAD_B="));     Serial.println(PIN_LOAD_B_LED());
-  Serial.println(F("======================="));
-#endif
+static inline void maybeFlush() {
+  unsigned long now = millis();
+  if (now - lastMidiFlushMs >= MIDI_FLUSH_EVERY_MS) {
+    lastMidiFlushMs = now;
+    MidiUSB.flush();
+  }
 }
 
-//////////////////////
-// MIDI SEND
-//////////////////////
 static inline void sendCC(uint8_t cc, uint8_t value) {
   midiEventPacket_t evt = {0x0B, (uint8_t)(0xB0 | MIDI_CH), cc, value};
   MidiUSB.sendMIDI(evt);
@@ -184,70 +180,73 @@ static inline void sendNoteOff(uint8_t note) {
 #endif
 }
 
-static inline void maybeFlush() {
-  unsigned long now = millis();
-  if (now - lastMidiFlushMs >= MIDI_FLUSH_EVERY_MS) {
-    lastMidiFlushMs = now;
-    MidiUSB.flush();
-  }
-}
-
-//////////////////////
-// LED WRITE
-//////////////////////
 static inline void writeLED(int pin, bool on, bool activeHigh) {
-  // si activeHigh=true: on => HIGH
-  // si activeHigh=false: on => LOW
   digitalWrite(pin, (on ^ !activeHigh) ? HIGH : LOW);
 }
 
-static inline void forceLoadLEDsOn() {
-  writeLED(PIN_LOAD_A_LED(), true, LED_ACTIVE_HIGH_LOAD);
-  writeLED(PIN_LOAD_B_LED(), true, LED_ACTIVE_HIGH_LOAD);
+static inline void debugLedStateIfChanged(bool pA, bool pB, bool lA, bool lB) {
+#if DEBUG_SERIAL
+  if (pA != appliedPlayA || pB != appliedPlayB || lA != appliedLoadA || lB != appliedLoadB) {
+    unsigned long now = millis();
+    if (now - lastDebugMs >= DEBUG_THROTTLE_MS) {
+      lastDebugMs = now;
+
+      Serial.print(F("[LED APPLY] PLAY_A=")); Serial.print(pA ? F("ON") : F("OFF"));
+      Serial.print(F(" PLAY_B="));          Serial.print(pB ? F("ON") : F("OFF"));
+      Serial.print(F(" LOAD_A="));          Serial.print(lA ? F("ON") : F("OFF"));
+      Serial.print(F(" LOAD_B="));          Serial.print(lB ? F("ON") : F("OFF"));
+
+      Serial.print(F(" | daw="));
+      Serial.print(dawPlayA); Serial.print(F(",")); Serial.print(dawPlayB); Serial.print(F(","));
+      Serial.print(dawLoadA); Serial.print(F(",")); Serial.print(dawLoadB);
+
+      Serial.print(F(" local="));
+      Serial.print(localPlayA); Serial.print(F(",")); Serial.print(localPlayB); Serial.print(F(","));
+      Serial.print(localLoadA); Serial.print(F(",")); Serial.println(localLoadB);
+    }
+  }
+#endif
 }
 
 static inline void applyLEDs() {
-  // PLAY LED final = (DAW feedback) OR (local press)
-  bool playA_on = (PLAY_LEDS_FROM_DAW ? dawPlayA : false) || (PLAY_LEDS_LOCAL_ON_PRESS ? localPlayA : false);
-  bool playB_on = (PLAY_LEDS_FROM_DAW ? dawPlayB : false) || (PLAY_LEDS_LOCAL_ON_PRESS ? localPlayB : false);
+  // PLAY: remoto OR fallback
+  bool playA_on = (LEDS_FROM_DAW ? dawPlayA : false) || (LEDS_LOCAL_FALLBACK ? localPlayA : false);
+  bool playB_on = (LEDS_FROM_DAW ? dawPlayB : false) || (LEDS_LOCAL_FALLBACK ? localPlayB : false);
+
+  // LOAD:
+  // - Si LOAD_LEDS_ALWAYS_ON: ON por default, y si OFF_WHILE_PRESSED: OFF SOLO mientras presionas.
+  // - Si no: remoto OR fallback (como PLAY).
+  bool loadA_on;
+  bool loadB_on;
+
+  if (LOAD_LEDS_ALWAYS_ON) {
+    if (LOAD_LEDS_OFF_WHILE_PRESSED) {
+      loadA_on = !localLoadA; // localLoadA=true mientras presionas => LED OFF
+      loadB_on = !localLoadB;
+    } else {
+      loadA_on = true;
+      loadB_on = true;
+    }
+  } else {
+    loadA_on = (LEDS_FROM_DAW ? dawLoadA : false) || (LEDS_LOCAL_FALLBACK ? localLoadA : false);
+    loadB_on = (LEDS_FROM_DAW ? dawLoadB : false) || (LEDS_LOCAL_FALLBACK ? localLoadB : false);
+  }
+
+  debugLedStateIfChanged(playA_on, playB_on, loadA_on, loadB_on);
 
   writeLED(PIN_PLAY_A_LED(), playA_on, LED_ACTIVE_HIGH_PLAY);
   writeLED(PIN_PLAY_B_LED(), playB_on, LED_ACTIVE_HIGH_PLAY);
+  writeLED(PIN_LOAD_A_LED(), loadA_on, LED_ACTIVE_HIGH_LOAD);
+  writeLED(PIN_LOAD_B_LED(), loadB_on, LED_ACTIVE_HIGH_LOAD);
 
-  // LOAD siempre ON
-  forceLoadLEDsOn();
-
-#if DEBUG_SERIAL
-  Serial.print(F("[LED] PLAY_A=")); Serial.print(playA_on ? F("ON") : F("OFF"));
-  Serial.print(F(" PLAY_B=")); Serial.print(playB_on ? F("ON") : F("OFF"));
-  Serial.print(F(" | LOAD_A=ON LOAD_B=ON"));
-  Serial.print(F(" | daw(A,B)=")); Serial.print(dawPlayA); Serial.print(F(",")); Serial.print(dawPlayB);
-  Serial.print(F(" local(A,B)=")); Serial.print(localPlayA); Serial.print(F(",")); Serial.println(localPlayB);
-#endif
+  appliedPlayA = playA_on;
+  appliedPlayB = playB_on;
+  appliedLoadA = loadA_on;
+  appliedLoadB = loadB_on;
 }
 
 //////////////////////
-// BOOT LED TEST (parpadea pines físicos)
-//////////////////////
-static inline void bootLedTest() {
-#if DEBUG_SERIAL
-  Serial.println(F("Boot LED Test: blinking PHYSICAL LED pins D9, D10, D16, D14"));
-#endif
-  int pins[] = { PHY_playA_led, PHY_playB_led, PHY_loadA_led, PHY_loadB_led };
-  for (int i = 0; i < 4; i++) {
-#if DEBUG_SERIAL
-    Serial.print(F(" Blink pin ")); Serial.println(pins[i]);
-#endif
-    writeLED(pins[i], true, true);  delay(200);
-    writeLED(pins[i], false, true); delay(120);
-  }
-#if DEBUG_SERIAL
-  Serial.println(F("Boot LED Test done."));
-#endif
-}
-
-//////////////////////
-// MIDI IN (feedback) -> PLAY LEDs (Note 60/62)
+// MIDI IN (feedback) -> 4 LEDs (Note 60-63)
 //////////////////////
 void handleMidiIn() {
   midiEventPacket_t rx;
@@ -257,26 +256,66 @@ void handleMidiIn() {
 
     uint8_t status = rx.byte1 & 0xF0;
     uint8_t ch     = rx.byte1 & 0x0F;
-    uint8_t data1  = rx.byte2;
-    uint8_t data2  = rx.byte3;
+    uint8_t note   = rx.byte2;
+    uint8_t vel    = rx.byte3;
 
     if (ch != MIDI_CH) continue;
 
 #if DEBUG_SERIAL
     Serial.print(F("[RX] status=0x")); Serial.print(status, HEX);
-    Serial.print(F(" d1=")); Serial.print(data1);
-    Serial.print(F(" d2=")); Serial.println(data2);
+    Serial.print(F(" note=")); Serial.print(note);
+    Serial.print(F(" vel="));  Serial.println(vel);
 #endif
 
+    // NoteOn vel=0 = NoteOff
     if (status == 0x90) {
-      bool isOn = (data2 > 0);
-      if (data1 == NOTE_PLAY_A) { dawPlayA = isOn; applyLEDs(); }
-      if (data1 == NOTE_PLAY_B) { dawPlayB = isOn; applyLEDs(); }
+      bool isOn = (vel > 0);
+      if (note == NOTE_PLAY_A) dawPlayA = isOn;
+      if (note == NOTE_PLAY_B) dawPlayB = isOn;
+      if (note == NOTE_LOAD_A) dawLoadA = isOn;
+      if (note == NOTE_LOAD_B) dawLoadB = isOn;
+      applyLEDs();
     } else if (status == 0x80) {
-      if (data1 == NOTE_PLAY_A) { dawPlayA = false; applyLEDs(); }
-      if (data1 == NOTE_PLAY_B) { dawPlayB = false; applyLEDs(); }
+      if (note == NOTE_PLAY_A) dawPlayA = false;
+      if (note == NOTE_PLAY_B) dawPlayB = false;
+      if (note == NOTE_LOAD_A) dawLoadA = false;
+      if (note == NOTE_LOAD_B) dawLoadB = false;
+      applyLEDs();
     }
   } while (rx.header != 0);
+}
+
+//////////////////////
+// BOOT LED TEST (PHYSICAL PINS)
+//////////////////////
+static inline void bootLedTest() {
+#if DEBUG_SERIAL
+  Serial.println(F("Boot LED Test: blinking PHYSICAL LED pins D9, D10, D16, D14"));
+#endif
+  int pins[] = { PHY_playA_led, PHY_playB_led, PHY_loadA_led, PHY_loadB_led };
+  for (int i = 0; i < 4; i++) {
+    writeLED(pins[i], true, true);  delay(200);
+    writeLED(pins[i], false, true); delay(120);
+  }
+#if DEBUG_SERIAL
+  Serial.println(F("Boot LED Test done."));
+#endif
+}
+
+static inline void printPinMap() {
+#if DEBUG_SERIAL
+  Serial.println(F("=== LOGICAL PIN MAP ==="));
+  Serial.print(F("SW: PLAY_A=")); Serial.print(PIN_PLAY_A_SW());
+  Serial.print(F(" PLAY_B="));   Serial.print(PIN_PLAY_B_SW());
+  Serial.print(F(" LOAD_A="));   Serial.print(PIN_LOAD_A_SW());
+  Serial.print(F(" LOAD_B="));   Serial.println(PIN_LOAD_B_SW());
+
+  Serial.print(F("LED: PLAY_A=")); Serial.print(PIN_PLAY_A_LED());
+  Serial.print(F(" PLAY_B="));     Serial.print(PIN_PLAY_B_LED());
+  Serial.print(F(" LOAD_A="));     Serial.print(PIN_LOAD_A_LED());
+  Serial.print(F(" LOAD_B="));     Serial.println(PIN_LOAD_B_LED());
+  Serial.println(F("======================="));
+#endif
 }
 
 void setup() {
@@ -286,46 +325,39 @@ void setup() {
   Serial.println(F("FadeTube Controller boot..."));
   Serial.print(F("SWAP switches=")); Serial.println(SWAP_PLAY_LOAD_SWITCHES ? F("true") : F("false"));
   Serial.print(F("SWAP leds="));     Serial.println(SWAP_PLAY_LOAD_LEDS ? F("true") : F("false"));
-  Serial.print(F("PLAY local on press=")); Serial.println(PLAY_LEDS_LOCAL_ON_PRESS ? F("true") : F("false"));
-  Serial.print(F("PLAY from DAW="));       Serial.println(PLAY_LEDS_FROM_DAW ? F("true") : F("false"));
+  Serial.print(F("LEDS_FROM_DAW=")); Serial.println(LEDS_FROM_DAW ? F("true") : F("false"));
+  Serial.print(F("LOCAL_FALLBACK=")); Serial.println(LEDS_LOCAL_FALLBACK ? F("true") : F("false"));
+  Serial.print(F("LOAD_ALWAYS_ON=")); Serial.println(LOAD_LEDS_ALWAYS_ON ? F("true") : F("false"));
+  Serial.print(F("LOAD_OFF_WHILE_PRESSED=")); Serial.println(LOAD_LEDS_OFF_WHILE_PRESSED ? F("true") : F("false"));
 #endif
 
-  // Encoder
   pinMode(encA, INPUT_PULLUP);
   pinMode(encB, INPUT_PULLUP);
   pinMode(encSW, INPUT_PULLUP);
   lastA = digitalRead(encA);
 
-  // Switches físicos como input pullup
   pinMode(PHY_playA_sw, INPUT_PULLUP);
   pinMode(PHY_playB_sw, INPUT_PULLUP);
   pinMode(PHY_loadA_sw, INPUT_PULLUP);
   pinMode(PHY_loadB_sw, INPUT_PULLUP);
 
-  // LEDs físicos como output
   pinMode(PHY_playA_led, OUTPUT);
   pinMode(PHY_playB_led, OUTPUT);
   pinMode(PHY_loadA_led, OUTPUT);
   pinMode(PHY_loadB_led, OUTPUT);
 
-  // Test visual rápido para identificar pines
   bootLedTest();
+  printPinMap();
 
-  // Estado inicial
-  dawPlayA = dawPlayB = false;
-  localPlayA = localPlayB = false;
+  // estados iniciales
+  dawPlayA = dawPlayB = dawLoadA = dawLoadB = false;
+  localPlayA = localPlayB = localLoadA = localLoadB = false;
 
-  dbgPinMap();
-
-  // Aplicar LEDs: LOAD ON, PLAY según estados (inicialmente OFF)
   applyLEDs();
 }
 
 void loop() {
   unsigned long now = millis();
-
-  // Mantener LOAD siempre ON (por si algo lo “pisa”)
-  forceLoadLEDsOn();
 
   // 1) MIDI feedback primero
   handleMidiIn();
@@ -354,20 +386,20 @@ void loop() {
   }
   lastEncSW = sw;
 
-  // 4) Buttons -> Notes + local LED feedback (Play)
+  // 4) Buttons -> Notes + local fallback (si está habilitado)
   // Play A
   bool pA = digitalRead(PIN_PLAY_A_SW());
   if (lastPlayA == HIGH && pA == LOW) {
     if (now - lastPlayAms > DEBOUNCE_BTN_MS) {
       lastPlayAms = now;
-      localPlayA = true;           // <- prende LED local mientras presionas
-      applyLEDs();
+      localPlayA = true;
+      if (LEDS_LOCAL_FALLBACK) applyLEDs();
       sendNoteOn(NOTE_PLAY_A, 127);
       maybeFlush();
     }
   } else if (lastPlayA == LOW && pA == HIGH) {
     localPlayA = false;
-    applyLEDs();
+    if (LEDS_LOCAL_FALLBACK) applyLEDs();
     sendNoteOff(NOTE_PLAY_A);
     maybeFlush();
   }
@@ -379,13 +411,13 @@ void loop() {
     if (now - lastPlayBms > DEBOUNCE_BTN_MS) {
       lastPlayBms = now;
       localPlayB = true;
-      applyLEDs();
+      if (LEDS_LOCAL_FALLBACK) applyLEDs();
       sendNoteOn(NOTE_PLAY_B, 127);
       maybeFlush();
     }
   } else if (lastPlayB == LOW && pB == HIGH) {
     localPlayB = false;
-    applyLEDs();
+    if (LEDS_LOCAL_FALLBACK) applyLEDs();
     sendNoteOff(NOTE_PLAY_B);
     maybeFlush();
   }
@@ -396,10 +428,14 @@ void loop() {
   if (lastLoadA == HIGH && lA == LOW) {
     if (now - lastLoadAms > DEBOUNCE_BTN_MS) {
       lastLoadAms = now;
+      localLoadA = true;                 // PRESIONADO
+      if (LEDS_LOCAL_FALLBACK || (LOAD_LEDS_ALWAYS_ON && LOAD_LEDS_OFF_WHILE_PRESSED)) applyLEDs();
       sendNoteOn(NOTE_LOAD_A, 127);
       maybeFlush();
     }
   } else if (lastLoadA == LOW && lA == HIGH) {
+    localLoadA = false;                // SUELTO
+    if (LEDS_LOCAL_FALLBACK || (LOAD_LEDS_ALWAYS_ON && LOAD_LEDS_OFF_WHILE_PRESSED)) applyLEDs();
     sendNoteOff(NOTE_LOAD_A);
     maybeFlush();
   }
@@ -410,16 +446,20 @@ void loop() {
   if (lastLoadB == HIGH && lB == LOW) {
     if (now - lastLoadBms > DEBOUNCE_BTN_MS) {
       lastLoadBms = now;
+      localLoadB = true;                 // PRESIONADO
+      if (LEDS_LOCAL_FALLBACK || (LOAD_LEDS_ALWAYS_ON && LOAD_LEDS_OFF_WHILE_PRESSED)) applyLEDs();
       sendNoteOn(NOTE_LOAD_B, 127);
       maybeFlush();
     }
   } else if (lastLoadB == LOW && lB == HIGH) {
+    localLoadB = false;                // SUELTO
+    if (LEDS_LOCAL_FALLBACK || (LOAD_LEDS_ALWAYS_ON && LOAD_LEDS_OFF_WHILE_PRESSED)) applyLEDs();
     sendNoteOff(NOTE_LOAD_B);
     maybeFlush();
   }
   lastLoadB = lB;
 
-  // 5) Crossfader -> CC14 absolute
+  // 5) Crossfader -> CC14
   int raw = analogRead(faderPin);
   raw = (raw + analogRead(faderPin) + analogRead(faderPin) + analogRead(faderPin)) / 4;
 
@@ -433,4 +473,3 @@ void loop() {
 
   maybeFlush();
 }
-
