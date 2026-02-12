@@ -37,7 +37,7 @@ const unsigned long DEBUG_THROTTLE_MS = 40;
 // IDLE MODE
 //////////////////////
 const unsigned long IDLE_TIMEOUT_MS = 180000UL; // 3 minutos
-const unsigned long IDLE_BREATH_PERIOD_MS = 2400; // velocidad respiración (ms por ciclo)
+const unsigned long IDLE_BREATH_PERIOD_MS = 4800; // velocidad respiración (ms por ciclo)
 
 unsigned long lastActivityMs = 0;
 bool idleActive = false;
@@ -380,7 +380,7 @@ static inline void tempoCenterB() {
 //////////////////////
 static inline void bootBreath(uint8_t cycles) {
   // 5 ciclos de “respiración” rápida (bloquea un poco al arrancar, OK)
-  const unsigned long period = 600; // rápido
+  const unsigned long period = 1200; // rápido
   unsigned long start = millis();
   unsigned long total = (unsigned long)cycles * period;
 
