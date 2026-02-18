@@ -9,6 +9,31 @@
 
   + BOOT ANIMATION:
     - Al conectar: 5 “respiraciones” rápidas (todos los LEDs al mismo tiempo).
+
+  + NUEVA LÓGICA DJ:
+    - Crossfader normal (sin LOAD): CC_CROSSFADER (14)
+    - Mantén LOAD A + mueve crossfader: CC_TEMPO_A_ABS (30) ABS 0..127
+    - Mantén LOAD B + mueve crossfader: CC_TEMPO_B_ABS (31) ABS 0..127
+    - Mantén LOAD A + gira encoder: CC_JOG_A_REL (22) relativo (+1 / -1)
+    - Mantén LOAD B + gira encoder: CC_JOG_B_REL (23) relativo (+1 / -1)
+      (derecha=1, izquierda=127)
+
+  + SOFT TAKEOVER (CROSSFADER CC14):
+    - El CC14 NO se manda al volver del modo LOAD->TEMPO hasta que el fader físico
+      alcance (cruce) el último valor “virtual” de CC14 (lastCrossMidi).
+
+  + MEJORA SOLICITADA (LOAD "ON RELEASE" + CANCEL SI HAY SHORTCUT):
+    - El LOAD (NOTE_LOAD_A / NOTE_LOAD_B) ya NO se envía en press-down.
+    - Se envía SOLO al soltar (release-up).
+    - Si mientras está presionado LOAD se detecta un shortcut (encoder jog o crossfader tempo),
+      entonces al soltar LOAD NO se envía el NOTE de LOAD (se cancela).
+    - Los shortcuts siguen funcionando igual.
+
+  + FIX BUG + MEJORA (TEMPO SOFT TAKEOVER + SOLO CAMBIA SI MUEVES FADER):
+    - Al entrar a modo TEMPO (LOAD + fader) NO se manda CC30/31 automáticamente.
+    - Solo se manda cuando el usuario MUEVE el fader (gate por movimiento real).
+    - Además, soft takeover para tempo: aun moviendo, no se manda hasta “capturar”
+      el último tempo virtual del deck (tempoA_val / tempoB_val).
 */
 
 //////////////////////
@@ -37,7 +62,7 @@ const unsigned long DEBUG_THROTTLE_MS = 40;
 // IDLE MODE
 //////////////////////
 const unsigned long IDLE_TIMEOUT_MS = 180000UL; // 3 minutos
-const unsigned long IDLE_BREATH_PERIOD_MS = 4800; // velocidad respiración (ms por ciclo)
+const unsigned long IDLE_BREATH_PERIOD_MS = 4800; // ms por ciclo
 
 unsigned long lastActivityMs = 0;
 bool idleActive = false;
@@ -79,12 +104,20 @@ static inline int PIN_LOAD_B_LED() { return SWAP_PLAY_LOAD_LEDS ? PHY_playB_led 
 //////////////////////
 const uint8_t MIDI_CH = 0; // Channel 1
 
+// Crossfader normal
 const uint8_t CC_CROSSFADER   = 14;
+
+// Encoder normal (scroll)
 const uint8_t CC_ENCODER_REL  = 20;
 const uint8_t CC_ENCODER_PUSH = 21;
 
-const uint8_t CC_TEMPO_A_ABS = 30;
-const uint8_t CC_TEMPO_B_ABS = 31;
+// Jogwheel (relativo +/-1) - separado por deck (FIX)
+const uint8_t CC_JOG_A_REL    = 22;
+const uint8_t CC_JOG_B_REL    = 23;
+
+// Tempo (ABS 0..127)
+const uint8_t CC_TEMPO_A_ABS  = 30;
+const uint8_t CC_TEMPO_B_ABS  = 31;
 
 const uint8_t NOTE_PLAY_A = 60;
 const uint8_t NOTE_LOAD_A = 61;
@@ -104,12 +137,6 @@ const unsigned long MIDI_FLUSH_EVERY_MS = 5;
 //////////////////////
 uint8_t tempoA_val = 64;
 uint8_t tempoB_val = 64;
-
-const unsigned long TEMPO_FAST_MS = 18;
-const uint8_t TEMPO_STEP_SLOW = 1;
-const uint8_t TEMPO_STEP_FAST = 4;
-
-unsigned long lastTempoStepMs = 0;
 
 //////////////////////
 // ESTADO INPUTS
@@ -131,8 +158,47 @@ unsigned long lastPlayBms = 0;
 unsigned long lastLoadAms = 0;
 unsigned long lastLoadBms = 0;
 
-int lastFaderMidi = -999;
 unsigned long lastMidiFlushMs = 0;
+
+//////////////////////
+// LOAD "ON RELEASE" + CANCEL SI HUBO SHORTCUT
+//////////////////////
+bool loadA_pending = false;
+bool loadB_pending = false;
+bool loadA_usedShortcut = false;
+bool loadB_usedShortcut = false;
+
+static inline void setLoadPendingA(bool pending) {
+  loadA_pending = pending;
+  if (pending) loadA_usedShortcut = false;
+}
+static inline void setLoadPendingB(bool pending) {
+  loadB_pending = pending;
+  if (pending) loadB_usedShortcut = false;
+}
+
+//////////////////////
+// CROSS / TEMPO POR FADER + SOFT TAKEOVER
+//////////////////////
+int lastCrossMidi        = -999; // último CC14 “virtual” enviado
+int lastTempoAFromFader  = -999; // último CC30 enviado por fader
+int lastTempoBFromFader  = -999; // último CC31 enviado por fader
+
+// Soft takeover state (solo para CC14)
+bool crossTakeoverActive = false;
+int  crossTakeoverTarget = 0;
+int  crossPrevPhys       = -999;
+bool prevAnyTempoMode    = false;
+
+//////////////////////
+// TEMPO TAKEOVER (CC30/CC31) + MOVEMENT GATE
+//////////////////////
+bool tempoTakeoverActive = false;
+int  tempoTakeoverTarget = 0;
+int  tempoPrevPhys       = -999;
+int  tempoEntryPhys      = -999;
+bool tempoMoved          = false;
+uint8_t tempoTakeoverDeck = 0; // 1=A, 2=B, 0=none
 
 //////////////////////
 // ESTADO LEDs
@@ -159,11 +225,7 @@ unsigned long lastDebugMs = 0;
 //////////////////////
 static inline void markActivity() {
   lastActivityMs = millis();
-  if (idleActive) {
-    idleActive = false;
-    // al salir de idle, re-aplica estado normal
-    // (applyLEDs() se llama afuera normalmente, pero lo forzamos)
-  }
+  if (idleActive) idleActive = false;
 }
 
 static inline void maybeFlush() {
@@ -206,7 +268,6 @@ static inline void writeLED(int pin, bool on, bool activeHigh) {
 
 // PWM por software (0..255) usando micros() (sirve en cualquier pin)
 static inline void writeLEDPwmSoft(int pin, uint8_t level, bool activeHigh) {
-  // PWM ~ 3906 Hz usando los 8 bits bajos de micros()
   uint8_t phase = (uint8_t)(micros() & 0xFF);
   bool on = (phase < level);
   digitalWrite(pin, (on ^ !activeHigh) ? HIGH : LOW);
@@ -228,7 +289,7 @@ static inline void debugLedStateIfChanged(bool pA, bool pB, bool lA, bool lB) {
 }
 
 static inline void applyLEDs() {
-  if (idleActive) return; // en idle, los LEDs los controla la animación
+  if (idleActive) return;
 
   bool playA_on = (LEDS_FROM_DAW ? dawPlayA : false) || (LEDS_LOCAL_FALLBACK ? localPlayA : false);
   bool playB_on = (LEDS_FROM_DAW ? dawPlayB : false) || (LEDS_LOCAL_FALLBACK ? localPlayB : false);
@@ -266,30 +327,20 @@ static inline void applyLEDs() {
 // IDLE ANIMATION (breathing)
 //////////////////////
 static inline uint8_t breathLevel(unsigned long nowMs, unsigned long periodMs) {
-  // Triangular wave 0..255..0 (suave-ish sin floats)
   unsigned long t = nowMs % periodMs;
   unsigned long half = periodMs / 2;
-  if (t < half) {
-    // sube 0..255
-    return (uint8_t)((t * 255UL) / half);
-  } else {
-    // baja 255..0
-    t -= half;
-    return (uint8_t)(255UL - ((t * 255UL) / half));
-  }
+  if (t < half) return (uint8_t)((t * 255UL) / half);
+  t -= half;
+  return (uint8_t)(255UL - ((t * 255UL) / half));
 }
 
 static inline void idleUpdate() {
   unsigned long now = millis();
   if (!idleActive) {
-    if (now - lastActivityMs >= IDLE_TIMEOUT_MS) {
-      idleActive = true;
-    } else {
-      return;
-    }
+    if (now - lastActivityMs >= IDLE_TIMEOUT_MS) idleActive = true;
+    else return;
   }
 
-  // Respiran los 4 LEDs al mismo tiempo
   uint8_t lvl = breathLevel(now, IDLE_BREATH_PERIOD_MS);
 
   writeLEDPwmSoft(PIN_PLAY_A_LED(), lvl, LED_ACTIVE_HIGH_PLAY);
@@ -314,7 +365,6 @@ void handleMidiIn() {
 
     if (ch != MIDI_CH) continue;
 
-    // Cualquier MIDI IN cuenta como actividad (evita idle mientras el DAW está “vivo”)
     markActivity();
 
     if (status == 0x90) {
@@ -335,52 +385,10 @@ void handleMidiIn() {
 }
 
 //////////////////////
-// TEMPO HELPERS
-//////////////////////
-static inline uint8_t clamp127(int v) {
-  if (v < 0) return 0;
-  if (v > 127) return 127;
-  return (uint8_t)v;
-}
-
-static inline uint8_t tempoStep(unsigned long now) {
-  uint8_t step = (now - lastTempoStepMs <= TEMPO_FAST_MS) ? TEMPO_STEP_FAST : TEMPO_STEP_SLOW;
-  lastTempoStepMs = now;
-  return step;
-}
-
-static inline void tempoAdjustA(bool dirRight, unsigned long now) {
-  int v = tempoA_val;
-  uint8_t step = tempoStep(now);
-  v += dirRight ? step : -step;
-  tempoA_val = clamp127(v);
-  sendCC(CC_TEMPO_A_ABS, tempoA_val);
-}
-
-static inline void tempoAdjustB(bool dirRight, unsigned long now) {
-  int v = tempoB_val;
-  uint8_t step = tempoStep(now);
-  v += dirRight ? step : -step;
-  tempoB_val = clamp127(v);
-  sendCC(CC_TEMPO_B_ABS, tempoB_val);
-}
-
-static inline void tempoCenterA() {
-  tempoA_val = 64;
-  sendCC(CC_TEMPO_A_ABS, tempoA_val);
-}
-
-static inline void tempoCenterB() {
-  tempoB_val = 64;
-  sendCC(CC_TEMPO_B_ABS, tempoB_val);
-}
-
-//////////////////////
 // BOOT ANIMATION
 //////////////////////
 static inline void bootBreath(uint8_t cycles) {
-  // 5 ciclos de “respiración” rápida (bloquea un poco al arrancar, OK)
-  const unsigned long period = 1200; // rápido
+  const unsigned long period = 1200;
   unsigned long start = millis();
   unsigned long total = (unsigned long)cycles * period;
 
@@ -390,17 +398,62 @@ static inline void bootBreath(uint8_t cycles) {
     writeLEDPwmSoft(PIN_PLAY_B_LED(), lvl, LED_ACTIVE_HIGH_PLAY);
     writeLEDPwmSoft(PIN_LOAD_A_LED(), lvl, LED_ACTIVE_HIGH_LOAD);
     writeLEDPwmSoft(PIN_LOAD_B_LED(), lvl, LED_ACTIVE_HIGH_LOAD);
-    // no delay: mantenemos PWM soft fluido
-    // dejamos respirar el CPU lo mínimo
   }
 
-  // apaga todo al final del boot para luego aplicar estado real
   writeLED(PIN_PLAY_A_LED(), false, LED_ACTIVE_HIGH_PLAY);
   writeLED(PIN_PLAY_B_LED(), false, LED_ACTIVE_HIGH_PLAY);
   writeLED(PIN_LOAD_A_LED(), false, LED_ACTIVE_HIGH_LOAD);
   writeLED(PIN_LOAD_B_LED(), false, LED_ACTIVE_HIGH_LOAD);
 }
 
+//////////////////////
+// SOFT TAKEOVER HELPERS (CC14)
+//////////////////////
+static inline void armCrossTakeover(int currentPhys) {
+  if (lastCrossMidi == -999) {
+    crossTakeoverActive = false;
+    crossPrevPhys = currentPhys;
+    return;
+  }
+  crossTakeoverActive = true;
+  crossTakeoverTarget = lastCrossMidi;
+  crossPrevPhys = currentPhys;
+}
+
+static inline bool takeoverCaptured(int prevPhys, int phys, int target) {
+  if (abs(phys - target) <= FADER_DEADBAND) return true;
+
+  if (prevPhys == -999) return false;
+  if (prevPhys < target && phys >= target) return true;
+  if (prevPhys > target && phys <= target) return true;
+
+  return false;
+}
+
+//////////////////////
+// TEMPO TAKEOVER HELPERS (CC30/CC31)
+//////////////////////
+static inline void armTempoTakeover(uint8_t deck, int entryPhys) {
+  tempoTakeoverDeck   = deck;
+  tempoEntryPhys      = entryPhys;
+  tempoPrevPhys       = entryPhys;
+  tempoMoved          = false;
+  tempoTakeoverTarget = (deck == 1) ? (int)tempoA_val : (int)tempoB_val;
+  tempoTakeoverActive = true;
+}
+
+static inline void disarmTempoTakeover() {
+  tempoTakeoverActive = false;
+  tempoTakeoverDeck = 0;
+  tempoMoved = false;
+  tempoEntryPhys = -999;
+  tempoPrevPhys = -999;
+  tempoTakeoverTarget = 0;
+}
+
+//////////////////////
+// SETUP
+//////////////////////
 void setup() {
 #if DEBUG_SERIAL
   Serial.begin(115200);
@@ -426,16 +479,28 @@ void setup() {
   dawPlayA = dawPlayB = dawLoadA = dawLoadB = false;
   localPlayA = localPlayB = localLoadA = localLoadB = false;
 
-  // boot animation (5 veces)
+  // pending/cancel init
+  loadA_pending = loadB_pending = false;
+  loadA_usedShortcut = loadB_usedShortcut = false;
+
+  // tempo takeover init
+  disarmTempoTakeover();
+
   bootBreath(5);
 
-  // manda tempo centrado (opcional)
+  // Seed inicial de tempo (opcional)
   sendCC(CC_TEMPO_A_ABS, tempoA_val);
   sendCC(CC_TEMPO_B_ABS, tempoB_val);
   maybeFlush();
 
   lastActivityMs = millis();
   idleActive = false;
+
+  // baseline fader
+  int raw = analogRead(faderPin);
+  raw = (raw + analogRead(faderPin) + analogRead(faderPin) + analogRead(faderPin)) / 4;
+  int phys = map(raw, 0, 1023, 0, 127);
+  crossPrevPhys = phys;
 
   applyLEDs();
 }
@@ -449,39 +514,76 @@ void loop() {
   // 1) MIDI feedback
   handleMidiIn();
 
-  // 2) IDLE update (si está activo, controla LEDs por PWM soft)
+  // 2) IDLE update
   idleUpdate();
 
-  // Estado de LOAD para “tempo mode”
+  // --- Snapshot de estado LOAD (para modos)
   bool loadA_pressed = (digitalRead(PIN_LOAD_A_SW()) == LOW);
   bool loadB_pressed = (digitalRead(PIN_LOAD_B_SW()) == LOW);
+
+  bool tempoModeA    = (loadA_pressed && !loadB_pressed);
+  bool tempoModeB    = (loadB_pressed && !loadA_pressed);
+  bool anyTempoMode  = (tempoModeA || tempoModeB);
+
+  // 2.1) Transiciones para takeovers (CC14 y TEMPO)
+  // A) TEMPO->NORMAL: armar soft takeover de CC14
+  if (prevAnyTempoMode && !anyTempoMode) {
+    int raw0 = analogRead(faderPin);
+    raw0 = (raw0 + analogRead(faderPin) + analogRead(faderPin) + analogRead(faderPin)) / 4;
+    int phys0 = map(raw0, 0, 1023, 0, 127);
+    armCrossTakeover(phys0);
+
+    // al salir de TEMPO limpiamos estado de tempo takeover
+    disarmTempoTakeover();
+  }
+
+  // B) NORMAL->TEMPO: armar tempo takeover (gateado por movimiento real)
+  if (!prevAnyTempoMode && anyTempoMode) {
+    int raw1 = analogRead(faderPin);
+    raw1 = (raw1 + analogRead(faderPin) + analogRead(faderPin) + analogRead(faderPin)) / 4;
+    int phys1 = map(raw1, 0, 1023, 0, 127);
+
+    if (tempoModeA) armTempoTakeover(1, phys1);
+    else if (tempoModeB) armTempoTakeover(2, phys1);
+  }
+
+  prevAnyTempoMode = anyTempoMode;
 
   // 3) Encoder rotate
   int a = digitalRead(encA);
   if (lastA == HIGH && a == LOW) {
     if (now - lastEncStepMs > DEBOUNCE_ENC_MS) {
       lastEncStepMs = now;
+
       int b = digitalRead(encB);
       bool dirRight = (b == HIGH);
 
       markActivity();
 
-      if (loadA_pressed && !loadB_pressed) {
-        tempoAdjustA(dirRight, now);
-      } else if (loadB_pressed && !loadA_pressed) {
-        tempoAdjustB(dirRight, now);
+      if (anyTempoMode) {
+        // JOG RELATIVO +/-1 (mientras LOAD) - separado por deck (FIX)
+        uint8_t rel = dirRight ? 1 : 127;
+
+        if (tempoModeA) {
+          sendCC(CC_JOG_A_REL, rel);
+          if (loadA_pending) loadA_usedShortcut = true;
+        } else if (tempoModeB) {
+          sendCC(CC_JOG_B_REL, rel);
+          if (loadB_pending) loadB_usedShortcut = true;
+        }
       } else {
+        // Scroll/Browse normal
         uint8_t rel = dirRight ? 1 : 127;
         sendCC(CC_ENCODER_REL, rel);
       }
 
       maybeFlush();
-      applyLEDs(); // por si salimos de idle
+      applyLEDs();
     }
   }
   lastA = a;
 
-  // 4) Encoder push
+  // 4) Encoder push (sin cambios funcionales)
   bool sw = digitalRead(encSW);
   if (lastEncSW == HIGH && sw == LOW) {
     if (now - lastEncSWMs > 150) {
@@ -489,14 +591,8 @@ void loop() {
 
       markActivity();
 
-      if (loadA_pressed && !loadB_pressed) {
-        tempoCenterA();
-      } else if (loadB_pressed && !loadA_pressed) {
-        tempoCenterB();
-      } else {
-        scrollToggleState = !scrollToggleState;
-        sendCC(CC_ENCODER_PUSH, scrollToggleState ? 127 : 0);
-      }
+      scrollToggleState = !scrollToggleState;
+      sendCC(CC_ENCODER_PUSH, scrollToggleState ? 127 : 0);
 
       maybeFlush();
       applyLEDs();
@@ -545,59 +641,158 @@ void loop() {
   }
   lastPlayB = pB;
 
-  // Load A
+  // Load A (ON RELEASE + CANCEL)
   bool lA = digitalRead(PIN_LOAD_A_SW());
   if (lastLoadA == HIGH && lA == LOW) {
     if (now - lastLoadAms > DEBOUNCE_BTN_MS) {
       lastLoadAms = now;
       markActivity();
+
       localLoadA = true;
+      setLoadPendingA(true);
+
       if (LEDS_LOCAL_FALLBACK || (LOAD_LEDS_ALWAYS_ON && LOAD_LEDS_OFF_WHILE_PRESSED)) applyLEDs();
-      sendNoteOn(NOTE_LOAD_A, 127);
-      maybeFlush();
     }
   } else if (lastLoadA == LOW && lA == HIGH) {
     markActivity();
+
     localLoadA = false;
+
+    if (loadA_pending && !loadA_usedShortcut) {
+      sendNoteOn(NOTE_LOAD_A, 127);
+      sendNoteOff(NOTE_LOAD_A);
+      maybeFlush();
+    }
+
+    setLoadPendingA(false);
+
     if (LEDS_LOCAL_FALLBACK || (LOAD_LEDS_ALWAYS_ON && LOAD_LEDS_OFF_WHILE_PRESSED)) applyLEDs();
-    sendNoteOff(NOTE_LOAD_A);
-    maybeFlush();
   }
   lastLoadA = lA;
 
-  // Load B
+  // Load B (ON RELEASE + CANCEL)
   bool lB = digitalRead(PIN_LOAD_B_SW());
   if (lastLoadB == HIGH && lB == LOW) {
     if (now - lastLoadBms > DEBOUNCE_BTN_MS) {
       lastLoadBms = now;
       markActivity();
+
       localLoadB = true;
+      setLoadPendingB(true);
+
       if (LEDS_LOCAL_FALLBACK || (LOAD_LEDS_ALWAYS_ON && LOAD_LEDS_OFF_WHILE_PRESSED)) applyLEDs();
-      sendNoteOn(NOTE_LOAD_B, 127);
-      maybeFlush();
     }
   } else if (lastLoadB == LOW && lB == HIGH) {
     markActivity();
+
     localLoadB = false;
+
+    if (loadB_pending && !loadB_usedShortcut) {
+      sendNoteOn(NOTE_LOAD_B, 127);
+      sendNoteOff(NOTE_LOAD_B);
+      maybeFlush();
+    }
+
+    setLoadPendingB(false);
+
     if (LEDS_LOCAL_FALLBACK || (LOAD_LEDS_ALWAYS_ON && LOAD_LEDS_OFF_WHILE_PRESSED)) applyLEDs();
-    sendNoteOff(NOTE_LOAD_B);
-    maybeFlush();
   }
   lastLoadB = lB;
 
-  // 6) Crossfader
+  // 6) Crossfader (dual-mode: CC14 o TEMPO A/B ABS + soft takeover CC14 + tempo takeover)
   int raw = analogRead(faderPin);
   raw = (raw + analogRead(faderPin) + analogRead(faderPin) + analogRead(faderPin)) / 4;
+  int phys = map(raw, 0, 1023, 0, 127);
 
-  int midi = map(raw, 0, 1023, 0, 127);
+  if (anyTempoMode) {
+    // EN MODO LOAD: el crossfader controla TEMPO del deck seleccionado
+    // FIX: no mandar nada hasta que el usuario MUEVA el fader
+    // y además: soft takeover contra el último tempo virtual (tempoA_val/tempoB_val)
 
-  if (lastFaderMidi == -999 || abs(midi - lastFaderMidi) > FADER_DEADBAND) {
-    lastFaderMidi = midi;
-    markActivity();
-    sendCC(CC_CROSSFADER, (uint8_t)midi);
-    maybeFlush();
-    applyLEDs();
+    // Gate por movimiento real (evita salto al solo presionar LOAD)
+    if (!tempoMoved) {
+      if (abs(phys - tempoEntryPhys) <= FADER_DEADBAND) {
+        // sigue quieto (o ruido mínimo) => NO enviar
+        tempoPrevPhys = phys;
+        crossPrevPhys = phys; // seguir track para takeover de CC14 al salir
+      } else {
+        tempoMoved = true; // ya hubo movimiento real
+      }
+    }
+
+    // Si ya se movió, aplicamos takeover de tempo
+    if (tempoMoved) {
+      if (tempoTakeoverActive) {
+        if (takeoverCaptured(tempoPrevPhys, phys, tempoTakeoverTarget)) {
+          tempoTakeoverActive = false; // capturado
+        } else {
+          // aún no capturado => no enviar tempo
+          tempoPrevPhys = phys;
+          crossPrevPhys = phys;
+          goto end_fader;
+        }
+      }
+
+      // Ya capturado => enviar tempo solo si cambia
+      if (tempoModeA) {
+        if (lastTempoAFromFader == -999 || abs(phys - lastTempoAFromFader) > FADER_DEADBAND) {
+          lastTempoAFromFader = phys;
+          tempoA_val = (uint8_t)phys;
+          markActivity();
+          sendCC(CC_TEMPO_A_ABS, tempoA_val);
+
+          // shortcut usado => cancelar LOAD al soltar
+          if (loadA_pending) loadA_usedShortcut = true;
+
+          maybeFlush();
+          applyLEDs();
+        }
+      } else if (tempoModeB) {
+        if (lastTempoBFromFader == -999 || abs(phys - lastTempoBFromFader) > FADER_DEADBAND) {
+          lastTempoBFromFader = phys;
+          tempoB_val = (uint8_t)phys;
+          markActivity();
+          sendCC(CC_TEMPO_B_ABS, tempoB_val);
+
+          if (loadB_pending) loadB_usedShortcut = true;
+
+          maybeFlush();
+          applyLEDs();
+        }
+      }
+
+      tempoPrevPhys = phys;
+      crossPrevPhys = phys;
+    }
+
+    // NO mandar CC14 mientras LOAD
+    crossPrevPhys = phys;
+  } else {
+    // MODO NORMAL: CC14 con soft takeover
+    if (crossTakeoverActive) {
+      if (takeoverCaptured(crossPrevPhys, phys, crossTakeoverTarget)) {
+        crossTakeoverActive = false;
+        if (lastCrossMidi == -999 || abs(phys - lastCrossMidi) > FADER_DEADBAND) {
+          lastCrossMidi = phys;
+          markActivity();
+          sendCC(CC_CROSSFADER, (uint8_t)phys);
+          maybeFlush();
+          applyLEDs();
+        }
+      }
+      crossPrevPhys = phys;
+    } else {
+      if (lastCrossMidi == -999 || abs(phys - lastCrossMidi) > FADER_DEADBAND) {
+        lastCrossMidi = phys;
+        markActivity();
+        sendCC(CC_CROSSFADER, (uint8_t)phys);
+        maybeFlush();
+        applyLEDs();
+      }
+      crossPrevPhys = phys;
+    }
   }
 
+end_fader:
   maybeFlush();
 }
