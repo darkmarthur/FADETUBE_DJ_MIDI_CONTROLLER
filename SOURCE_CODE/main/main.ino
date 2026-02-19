@@ -3,6 +3,68 @@
 /*
   FadeTube – USB-MIDI Controller v1 (ATmega32U4)
 
+  ============================================================
+  MIDI MAP / INTENCIÓN DE CONTROLES (sin “magia”)
+  ============================================================
+
+  Canal MIDI: CH1 (MIDI_CH = 0)
+
+  --- CONTROLES PRINCIPALES (uso típico DJ / app Faith 2) ---
+  1) Crossfader principal
+     - CC_CROSSFADER (14) 0..127
+     - Propósito: crossfade volumen Deck A <-> Deck B (mixer/crossfader).
+
+  2) Encoder (browse/scroll)
+     - CC_ENCODER_REL (20) relativo: derecha=1, izquierda=127
+     - Propósito: navegar librería/playlist, mover selección.
+
+  3) Encoder Push (toggle genérico)
+     - CC_ENCODER_PUSH (21) toggle: 127/0
+     - Propósito: botón de encoder para funciones generales (p.ej. expand/collapse, focus, etc.)
+
+  4) LOAD por deck (nota) — “ON RELEASE”
+     - NOTE_LOAD_A (61) / NOTE_LOAD_B (63)
+     - Propósito: cargar track al deck correspondiente.
+     - IMPORTANTE: NO se envía al presionar; se envía al soltar.
+       Si durante el hold se dispara cualquier shortcut, entonces se CANCELA el envío de LOAD.
+
+  5) PLAY por deck (nota)
+     - NOTE_PLAY_A (60) / NOTE_PLAY_B (62)
+     - Propósito: Play/Pause (o Play) por deck.
+
+  --- SHORTCUTS (LOAD + acciones) ---
+  Estos shortcuts existen para que el usuario los pueda mapear en Traktor/Ableton/etc.
+  (Faith 2 puede ignorarlos si no los usa).
+
+  A) JOG (simulación jogwheel / “track nudge / scrub”)
+     - LOAD A + Encoder rotate -> CC_JOG_A_REL (22) relativo (+1 / -1)
+     - LOAD B + Encoder rotate -> CC_JOG_B_REL (23) relativo (+1 / -1)
+     - Propósito: nudging/seek/scratch ligero del track del deck.
+
+  B) TEMPO (simulación pitch/tempo)
+     - LOAD A + Crossfader move -> CC_TEMPO_A_ABS (30) ABS 0..127
+     - LOAD B + Crossfader move -> CC_TEMPO_B_ABS (31) ABS 0..127
+     - Propósito: pitch/tempo del deck.
+
+  C) FX (nuevo) — activar efecto / modo FX por deck (mapeable)
+     - LOAD A + PLAY A -> CC_FX_A_TOGGLE (40) toggle 127/0
+     - LOAD B + PLAY B -> CC_FX_B_TOGGLE (41) toggle 127/0
+     - Propósito: encender/apagar un efecto (o activar unit FX) por deck.
+       Ejemplos: Traktor FX Unit On, Ableton Device Activator.
+
+  D) CUE (nuevo) — activar/desactivar Cue por deck (mapeable)
+     - LOAD A + Encoder Push -> CC_CUE_A_TOGGLE (42) toggle 127/0
+     - LOAD B + Encoder Push -> CC_CUE_B_TOGGLE (43) toggle 127/0
+     - Propósito: CUE/monitoring por deck o “Headphones Cue”.
+       Ejemplos: Traktor Monitor Cue, Ableton Solo/Cue track.
+
+  Nota de diseño:
+  - Al disparar cualquier shortcut mientras LOAD está presionado,
+    marcamos loadX_usedShortcut=true para cancelar el NOTE_LOAD_X en release.
+  - Mantenemos intacto el comportamiento actual “LOAD on release + cancel”.
+
+  ============================================================
+
   + IDLE MODE:
     - Si no hay actividad por 3 minutos => LEDs "breathing" simultáneo (fade in/out).
     - Cualquier actividad (botón/encoder/fader o MIDI IN) sale del idle.
@@ -10,26 +72,17 @@
   + BOOT ANIMATION:
     - Al conectar: 5 “respiraciones” rápidas (todos los LEDs al mismo tiempo).
 
-  + NUEVA LÓGICA DJ:
-    - Crossfader normal (sin LOAD): CC_CROSSFADER (14)
-    - Mantén LOAD A + mueve crossfader: CC_TEMPO_A_ABS (30) ABS 0..127
-    - Mantén LOAD B + mueve crossfader: CC_TEMPO_B_ABS (31) ABS 0..127
-    - Mantén LOAD A + gira encoder: CC_JOG_A_REL (22) relativo (+1 / -1)
-    - Mantén LOAD B + gira encoder: CC_JOG_B_REL (23) relativo (+1 / -1)
-      (derecha=1, izquierda=127)
-
   + SOFT TAKEOVER (CROSSFADER CC14):
     - El CC14 NO se manda al volver del modo LOAD->TEMPO hasta que el fader físico
       alcance (cruce) el último valor “virtual” de CC14 (lastCrossMidi).
 
-  + MEJORA SOLICITADA (LOAD "ON RELEASE" + CANCEL SI HAY SHORTCUT):
+  + LOAD "ON RELEASE" + CANCEL SI HAY SHORTCUT:
     - El LOAD (NOTE_LOAD_A / NOTE_LOAD_B) ya NO se envía en press-down.
     - Se envía SOLO al soltar (release-up).
-    - Si mientras está presionado LOAD se detecta un shortcut (encoder jog o crossfader tempo),
+    - Si mientras está presionado LOAD se detecta un shortcut,
       entonces al soltar LOAD NO se envía el NOTE de LOAD (se cancela).
-    - Los shortcuts siguen funcionando igual.
 
-  + FIX BUG + MEJORA (TEMPO SOFT TAKEOVER + SOLO CAMBIA SI MUEVES FADER):
+  + TEMPO SOFT TAKEOVER + SOLO CAMBIA SI MUEVES FADER:
     - Al entrar a modo TEMPO (LOAD + fader) NO se manda CC30/31 automáticamente.
     - Solo se manda cuando el usuario MUEVE el fader (gate por movimiento real).
     - Además, soft takeover para tempo: aun moviendo, no se manda hasta “capturar”
@@ -111,13 +164,19 @@ const uint8_t CC_CROSSFADER   = 14;
 const uint8_t CC_ENCODER_REL  = 20;
 const uint8_t CC_ENCODER_PUSH = 21;
 
-// Jogwheel (relativo +/-1) - separado por deck (FIX)
+// Jogwheel (relativo +/-1) - separado por deck
 const uint8_t CC_JOG_A_REL    = 22;
 const uint8_t CC_JOG_B_REL    = 23;
 
 // Tempo (ABS 0..127)
 const uint8_t CC_TEMPO_A_ABS  = 30;
 const uint8_t CC_TEMPO_B_ABS  = 31;
+
+// NUEVOS SHORTCUTS (LOAD + PLAY / LOAD + ENC PUSH) - separados por deck
+const uint8_t CC_FX_A_TOGGLE  = 40; // LOAD A + PLAY A
+const uint8_t CC_FX_B_TOGGLE  = 41; // LOAD B + PLAY B
+const uint8_t CC_CUE_A_TOGGLE = 42; // LOAD A + ENC PUSH
+const uint8_t CC_CUE_B_TOGGLE = 43; // LOAD B + ENC PUSH
 
 const uint8_t NOTE_PLAY_A = 60;
 const uint8_t NOTE_LOAD_A = 61;
@@ -146,7 +205,13 @@ unsigned long lastEncStepMs = 0;
 
 bool lastEncSW = HIGH;
 unsigned long lastEncSWMs = 0;
-bool scrollToggleState = false;
+bool scrollToggleState = false; // CC21
+
+// NUEVOS toggles (para que FX/CUE sean toggle estables 127/0)
+bool fxA_toggleState  = false; // CC40
+bool fxB_toggleState  = false; // CC41
+bool cueA_toggleState = false; // CC42
+bool cueB_toggleState = false; // CC43
 
 bool lastPlayA = HIGH;
 bool lastPlayB = HIGH;
@@ -561,15 +626,15 @@ void loop() {
       markActivity();
 
       if (anyTempoMode) {
-        // JOG RELATIVO +/-1 (mientras LOAD) - separado por deck (FIX)
+        // JOG RELATIVO +/-1 (mientras LOAD) - separado por deck
         uint8_t rel = dirRight ? 1 : 127;
 
         if (tempoModeA) {
           sendCC(CC_JOG_A_REL, rel);
-          if (loadA_pending) loadA_usedShortcut = true;
+          if (loadA_pending) loadA_usedShortcut = true; // cancelar LOAD en release
         } else if (tempoModeB) {
           sendCC(CC_JOG_B_REL, rel);
-          if (loadB_pending) loadB_usedShortcut = true;
+          if (loadB_pending) loadB_usedShortcut = true; // cancelar LOAD en release
         }
       } else {
         // Scroll/Browse normal
@@ -583,7 +648,7 @@ void loop() {
   }
   lastA = a;
 
-  // 4) Encoder push (sin cambios funcionales)
+  // 4) Encoder push (ahora con shortcut LOAD + ENC PUSH => CUE por deck)
   bool sw = digitalRead(encSW);
   if (lastEncSW == HIGH && sw == LOW) {
     if (now - lastEncSWMs > 150) {
@@ -591,8 +656,20 @@ void loop() {
 
       markActivity();
 
-      scrollToggleState = !scrollToggleState;
-      sendCC(CC_ENCODER_PUSH, scrollToggleState ? 127 : 0);
+      // Shortcut: LOAD + Encoder Push => CUE toggle por deck
+      if (tempoModeA) {
+        cueA_toggleState = !cueA_toggleState;
+        sendCC(CC_CUE_A_TOGGLE, cueA_toggleState ? 127 : 0);
+        if (loadA_pending) loadA_usedShortcut = true; // cancelar LOAD en release
+      } else if (tempoModeB) {
+        cueB_toggleState = !cueB_toggleState;
+        sendCC(CC_CUE_B_TOGGLE, cueB_toggleState ? 127 : 0);
+        if (loadB_pending) loadB_usedShortcut = true; // cancelar LOAD en release
+      } else {
+        // Comportamiento original (sin LOAD): toggle genérico del encoder
+        scrollToggleState = !scrollToggleState;
+        sendCC(CC_ENCODER_PUSH, scrollToggleState ? 127 : 0);
+      }
 
       maybeFlush();
       applyLEDs();
@@ -601,43 +678,72 @@ void loop() {
   lastEncSW = sw;
 
   // 5) Buttons -> Notes + local fallback
-  // Play A
+  // Play A (ahora con shortcut LOAD A + PLAY A => FX A toggle)
   bool pA = digitalRead(PIN_PLAY_A_SW());
   if (lastPlayA == HIGH && pA == LOW) {
     if (now - lastPlayAms > DEBOUNCE_BTN_MS) {
       lastPlayAms = now;
       markActivity();
-      localPlayA = true;
-      if (LEDS_LOCAL_FALLBACK) applyLEDs();
-      sendNoteOn(NOTE_PLAY_A, 127);
-      maybeFlush();
+
+      // Shortcut: LOAD A + PLAY A => FX A toggle (mapeable)
+      if (tempoModeA) {
+        fxA_toggleState = !fxA_toggleState;
+        sendCC(CC_FX_A_TOGGLE, fxA_toggleState ? 127 : 0);
+        if (loadA_pending) loadA_usedShortcut = true; // cancelar LOAD en release
+        maybeFlush();
+        applyLEDs();
+      } else {
+        // Comportamiento original: NOTE PLAY A
+        localPlayA = true;
+        if (LEDS_LOCAL_FALLBACK) applyLEDs();
+        sendNoteOn(NOTE_PLAY_A, 127);
+        maybeFlush();
+      }
     }
   } else if (lastPlayA == LOW && pA == HIGH) {
     markActivity();
-    localPlayA = false;
-    if (LEDS_LOCAL_FALLBACK) applyLEDs();
-    sendNoteOff(NOTE_PLAY_A);
-    maybeFlush();
+
+    // Solo enviamos NOTE OFF si NO estábamos en shortcut (si era shortcut no mandamos NOTE ON)
+    if (!tempoModeA) {
+      localPlayA = false;
+      if (LEDS_LOCAL_FALLBACK) applyLEDs();
+      sendNoteOff(NOTE_PLAY_A);
+      maybeFlush();
+    }
   }
   lastPlayA = pA;
 
-  // Play B
+  // Play B (ahora con shortcut LOAD B + PLAY B => FX B toggle)
   bool pB = digitalRead(PIN_PLAY_B_SW());
   if (lastPlayB == HIGH && pB == LOW) {
     if (now - lastPlayBms > DEBOUNCE_BTN_MS) {
       lastPlayBms = now;
       markActivity();
-      localPlayB = true;
-      if (LEDS_LOCAL_FALLBACK) applyLEDs();
-      sendNoteOn(NOTE_PLAY_B, 127);
-      maybeFlush();
+
+      // Shortcut: LOAD B + PLAY B => FX B toggle (mapeable)
+      if (tempoModeB) {
+        fxB_toggleState = !fxB_toggleState;
+        sendCC(CC_FX_B_TOGGLE, fxB_toggleState ? 127 : 0);
+        if (loadB_pending) loadB_usedShortcut = true; // cancelar LOAD en release
+        maybeFlush();
+        applyLEDs();
+      } else {
+        // Comportamiento original: NOTE PLAY B
+        localPlayB = true;
+        if (LEDS_LOCAL_FALLBACK) applyLEDs();
+        sendNoteOn(NOTE_PLAY_B, 127);
+        maybeFlush();
+      }
     }
   } else if (lastPlayB == LOW && pB == HIGH) {
     markActivity();
-    localPlayB = false;
-    if (LEDS_LOCAL_FALLBACK) applyLEDs();
-    sendNoteOff(NOTE_PLAY_B);
-    maybeFlush();
+
+    if (!tempoModeB) {
+      localPlayB = false;
+      if (LEDS_LOCAL_FALLBACK) applyLEDs();
+      sendNoteOff(NOTE_PLAY_B);
+      maybeFlush();
+    }
   }
   lastPlayB = pB;
 
