@@ -117,6 +117,10 @@ const unsigned long DEBUG_THROTTLE_MS = 40;
 const unsigned long IDLE_TIMEOUT_MS = 180000UL; // 3 minutos
 const unsigned long IDLE_BREATH_PERIOD_MS = 4800; // ms por ciclo
 
+// *** FIX solicitado: no bajar a 0% en breathing, solo hasta 50% ***
+// Nivel mínimo de “breath” (0..255). 128 ≈ 50% duty.
+const uint8_t IDLE_BREATH_MIN_LEVEL = 68;
+
 unsigned long lastActivityMs = 0;
 bool idleActive = false;
 
@@ -391,12 +395,22 @@ static inline void applyLEDs() {
 //////////////////////
 // IDLE ANIMATION (breathing)
 //////////////////////
+
+// *** FIX solicitado: mapear breath para que vaya de 50%..100% (no 0%..100%) ***
 static inline uint8_t breathLevel(unsigned long nowMs, unsigned long periodMs) {
   unsigned long t = nowMs % periodMs;
   unsigned long half = periodMs / 2;
-  if (t < half) return (uint8_t)((t * 255UL) / half);
-  t -= half;
-  return (uint8_t)(255UL - ((t * 255UL) / half));
+
+  uint8_t base;
+  if (t < half) base = (uint8_t)((t * 255UL) / half);
+  else {
+    t -= half;
+    base = (uint8_t)(255UL - ((t * 255UL) / half));
+  }
+
+  // base: 0..255  =>  remap a [IDLE_BREATH_MIN_LEVEL .. 255]
+  // (Mantiene el mismo ritmo, solo eleva el piso del brillo)
+  return (uint8_t)(IDLE_BREATH_MIN_LEVEL + (((uint16_t)(255 - IDLE_BREATH_MIN_LEVEL)) * base) / 255);
 }
 
 static inline void idleUpdate() {
