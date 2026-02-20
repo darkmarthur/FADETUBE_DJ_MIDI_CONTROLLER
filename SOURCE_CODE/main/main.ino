@@ -195,6 +195,13 @@ const unsigned long DEBOUNCE_ENC_MS     = 2;
 const int           FADER_DEADBAND      = 1;
 const unsigned long MIDI_FLUSH_EVERY_MS = 5;
 
+// ================================
+// NUEVO: FADER END-SNAP (resiliencia por desgaste)
+// ================================
+// Si el fader ya no alcanza 0/127 físicamente, “snap” lo cercano al extremo.
+const uint8_t FADER_SNAP_MIN = 2;   // 0..2   => mandar 0
+const uint8_t FADER_SNAP_MAX = 125; // 125..127 => mandar 127
+
 //////////////////////
 // TEMPO VIRTUAL
 //////////////////////
@@ -329,6 +336,15 @@ static inline void sendNoteOff(uint8_t note) {
 #if DEBUG_SERIAL
   Serial.print(F("[TX NOTE OFF] ")); Serial.println(note);
 #endif
+}
+
+// ================================
+// NUEVO: SNAP fader a extremos 0/127
+// ================================
+static inline uint8_t snapFaderEnds(int v) {
+  if (v <= (int)FADER_SNAP_MIN) return 0;
+  if (v >= (int)FADER_SNAP_MAX) return 127;
+  return (uint8_t)v;
 }
 
 static inline void writeLED(int pin, bool on, bool activeHigh) {
@@ -578,7 +594,7 @@ void setup() {
   // baseline fader
   int raw = analogRead(faderPin);
   raw = (raw + analogRead(faderPin) + analogRead(faderPin) + analogRead(faderPin)) / 4;
-  int phys = map(raw, 0, 1023, 0, 127);
+  int phys = (int)snapFaderEnds(map(raw, 0, 1023, 0, 127)); // <-- SNAP aplicado
   crossPrevPhys = phys;
 
   applyLEDs();
@@ -609,7 +625,7 @@ void loop() {
   if (prevAnyTempoMode && !anyTempoMode) {
     int raw0 = analogRead(faderPin);
     raw0 = (raw0 + analogRead(faderPin) + analogRead(faderPin) + analogRead(faderPin)) / 4;
-    int phys0 = map(raw0, 0, 1023, 0, 127);
+    int phys0 = (int)snapFaderEnds(map(raw0, 0, 1023, 0, 127)); // <-- SNAP aplicado
     armCrossTakeover(phys0);
 
     // al salir de TEMPO limpiamos estado de tempo takeover
@@ -620,7 +636,7 @@ void loop() {
   if (!prevAnyTempoMode && anyTempoMode) {
     int raw1 = analogRead(faderPin);
     raw1 = (raw1 + analogRead(faderPin) + analogRead(faderPin) + analogRead(faderPin)) / 4;
-    int phys1 = map(raw1, 0, 1023, 0, 127);
+    int phys1 = (int)snapFaderEnds(map(raw1, 0, 1023, 0, 127)); // <-- SNAP aplicado
 
     if (tempoModeA) armTempoTakeover(1, phys1);
     else if (tempoModeB) armTempoTakeover(2, phys1);
@@ -822,7 +838,7 @@ void loop() {
   // 6) Crossfader (dual-mode: CC14 o TEMPO A/B ABS + soft takeover CC14 + tempo takeover)
   int raw = analogRead(faderPin);
   raw = (raw + analogRead(faderPin) + analogRead(faderPin) + analogRead(faderPin)) / 4;
-  int phys = map(raw, 0, 1023, 0, 127);
+  int phys = (int)snapFaderEnds(map(raw, 0, 1023, 0, 127)); // <-- SNAP aplicado
 
   if (anyTempoMode) {
     // EN MODO LOAD: el crossfader controla TEMPO del deck seleccionado
